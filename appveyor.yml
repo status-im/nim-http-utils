@@ -36,7 +36,7 @@ install:
   - koch boot -d:release
   - koch nimble
 build_script:
-  - cd C:\projects\nimcrypto
+  - cd C:\projects\nim-http-utils
   - nimble install -y
 test_script:
   - nimble test
