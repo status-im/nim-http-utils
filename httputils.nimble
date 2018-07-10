@@ -9,4 +9,6 @@ skipDirs      = @["tests", "Nim"]
 requires "nim >= 0.17.3"
 
 task test, "run tests":
-  setCommand "c", "tests/tvectors.nim"
+  exec "nim c -r -d:useSysAssert -d:useGcAssert tests/tvectors"
+  exec "nim c -r tests/tvectors"
+  exec "nim c -r -d:release tests/tvectors"
