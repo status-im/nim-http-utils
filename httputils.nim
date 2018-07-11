@@ -340,7 +340,10 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       if start == -1:
         break
       finish = index - 1
-      let m = processMethod(data, start, finish)
+      when T is byte:
+        let m = processMethod(cast[seq[char]](data), start, finish)
+      else:
+        let m = processMethod(data, start, finish)
       if m == HttpMethod.MethodError:
         break
       result.meth = m
@@ -359,7 +362,10 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       if start == -1:
         break
       finish = index - 1
-      let m = processVersion(data, start, finish)
+      when T is byte:
+        let m = processVersion(cast[seq[char]](data), start, finish)
+      else:
+        let m = processVersion(data, start, finish)
       if m == HttpVersion.HttpVersionError:
         break
       result.version = m
@@ -573,6 +579,19 @@ proc len*(reqresp: HttpReqRespHeader): int =
   ## Returns number of headers in ``reqresp``.
   if reqresp.success():
     result = len(reqresp.hdrs)
+
+proc `$`*(version: HttpVersion): string =
+  case version
+  of HttpVersion09:
+    result = "HTTP/0.9"
+  of HttpVersion10:
+    result = "HTTP/1.0"
+  of HttpVersion11:
+    result = "HTTP/1.1"
+  of HttpVersion20:
+    result = "HTTP/2.0"
+  else:
+    result = "HTTP/1.0"
 
 {.push overflowChecks: off.}
 proc contentLength*(reqresp: HttpReqRespHeader): int =
