@@ -7,7 +7,7 @@
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
 
-import strutils
+import times, strutils
 
 const
   ALPHA* = {'a'..'z', 'A'..'Z'}
@@ -622,3 +622,13 @@ proc contentLength*(reqresp: HttpReqRespHeader): int =
           result = -1
           break
 {.pop.}
+
+proc httpDate*(datetime: DateTime): string =
+  ## Returns ``datetime`` formated as HTTP full date (RFC-822).
+  ## ``Note``: ``datetime`` must be in UTC/GMT zone.
+  result = datetime.format("ddd, dd MMM yyyy HH:mm:ss")
+  result.add(" GMT")
+
+proc httpDate*(): string {.inline.} =
+  ## Returns current datetime formatted as HTTP full date (RFC-822).
+  result = utc(now()).httpDate()
