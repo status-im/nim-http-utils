@@ -435,7 +435,10 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       if start == -1:
         break
       finish = index - 1
-      let m = processVersion(data, start, finish)
+      when T is byte:
+        let m = processVersion(cast[seq[char]](data), start, finish)
+      else:
+        let m = processVersion(data, start, finish)
       if m == HttpVersion.HttpVersionError:
         break
       result.version = m
@@ -446,7 +449,10 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       if start == -1:
         break
       finish = index - 1
-      let m = processCode(data, start, finish)
+      when T is byte:
+        let m = processCode(cast[seq[char]](data), start, finish)
+      else:
+        let m = processCode(data, start, finish)
       if m == -1:
         break
       result.code = m
