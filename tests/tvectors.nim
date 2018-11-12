@@ -379,3 +379,9 @@ suite "HTTP Procedures test suite":
 
         for ei in ResponseHeaders[i][0]..ResponseHeaders[i][1]:
           check (resp[ResponseHeaderTexts[ei].k] == ResponseHeaderTexts[ei].v)
+
+  test "http method to string":
+    for c in HttpMethod:
+      let str = HttpMethodToStr[c].toLowerAscii
+      let methodStr = toLowerAscii($c)
+      check methodStr.find(str) > 0

@@ -209,6 +209,12 @@ type
 
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader
 
+const
+  HttpMethodToStr*: array[HttpMethod, string] = [
+    "GET", "POST", "HEAD", "PUT", "DELETE", "TRACE",
+    "OPTIONS", "CONNECT", "PATCH", "ERROR"
+  ]
+
 template processHeaders(sm: untyped, state: var int, ch: char): int =
   var res = true
   var code = 0
