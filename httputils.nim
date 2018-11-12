@@ -642,23 +642,13 @@ proc httpDate*(): string {.inline.} =
 proc `$`*(m: HttpMethod): string =
   ## Returns string representation of HTTP method ``m``.
   case m
-  of MethodGet:
-    result = "GET"
-  of MethodPost:
-    result = "POST"
-  of MethodHead:
-    result = "HEAD"
-  of MethodPut:
-    result = "PUT"
-  of MethodDelete:
-    result = "DELETE"
-  of MethodTrace:
-    result = "TRACE"
-  of MethodOptions:
-    result = "OPTIONS"
-  of MethodConnect:
-    result = "CONNECT"
-  of MethodPatch:
-    result = "PATCH"
-  of MethodError:
-    result = "ERROR"
+  of MethodGet:     "GET"
+  of MethodPost:    "POST"
+  of MethodHead:    "HEAD"
+  of MethodPut:     "PUT"
+  of MethodDelete:  "DELETE"
+  of MethodTrace:   "TRACE"
+  of MethodOptions: "OPTIONS"
+  of MethodConnect: "CONNECT"
+  of MethodPatch:   "PATCH"
+  of MethodError:   "ERROR"
