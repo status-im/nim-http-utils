@@ -344,7 +344,6 @@ suite "HTTP Procedures test suite":
         for ei in RequestHeaders[i][0]..RequestHeaders[i][1]:
           check (req[RequestHeaderTexts[ei].k] == RequestHeaderTexts[ei].v)
 
-
   test "HTTP Response Vectors":
     for i in 0..<len(ResponseVectors):
       var a = cast[seq[char]](ResponseVectors[i])
@@ -379,3 +378,16 @@ suite "HTTP Procedures test suite":
 
         for ei in ResponseHeaders[i][0]..ResponseHeaders[i][1]:
           check (resp[ResponseHeaderTexts[ei].k] == ResponseHeaderTexts[ei].v)
+
+  test "HTTP methods conversion vectors":
+    check:
+      $MethodGet == "GET"
+      $MethodPost == "POST"
+      $MethodHead == "HEAD"
+      $MethodPut == "PUT"
+      $MethodDelete == "DELETE"
+      $MethodTrace == "TRACE"
+      $MethodOptions == "OPTIONS"
+      $MethodConnect == "CONNECT"
+      $MethodPatch == "PATCH"
+      $MethodError == "ERROR"

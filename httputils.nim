@@ -638,3 +638,27 @@ proc httpDate*(datetime: DateTime): string =
 proc httpDate*(): string {.inline.} =
   ## Returns current datetime formatted as HTTP full date (RFC-822).
   result = utc(now()).httpDate()
+
+proc `$`*(m: HttpMethod): string =
+  ## Returns string representation of HTTP method ``m``.
+  case m
+  of MethodGet:
+    result = "GET"
+  of MethodPost:
+    result = "POST"
+  of MethodHead:
+    result = "HEAD"
+  of MethodPut:
+    result = "PUT"
+  of MethodDelete:
+    result = "DELETE"
+  of MethodTrace:
+    result = "TRACE"
+  of MethodOptions:
+    result = "OPTIONS"
+  of MethodConnect:
+    result = "CONNECT"
+  of MethodPatch:
+    result = "PATCH"
+  of MethodError:
+    result = "ERROR"
