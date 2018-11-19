@@ -1,4 +1,4 @@
-import unittest, strutils
+import unittest, strutils, parseutils
 import ../httputils
 
 # Some tests are borrowed from
@@ -309,6 +309,62 @@ const ResponseReasons = ["Moved Permanently", "OK", "Not Found", "", "", "OK",
                          "Success", "", ""]
 const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1]
 
+const transferEncodingVectors = [
+  "HTTP/1.1 200 OK\r\n" &
+  "Transfer-Encoding: ChunKed\r\n" &
+  "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+  "Transfer-Encoding: identity , Chunked\r\n" &
+  "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+  "Transfer-Encoding: gzIp , Deflate,chunked\r\n" &
+  "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+  "Content-Length: 100\r\n" &
+  "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+  "Transfer-Encoding: gziP\t, Deflate,\r\n" &
+  "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+  "Transfer-Encoding: ,gzip ,\tDeflate\r\n" &
+  "\r\n"
+]
+
+const transferEncodingModes = [
+  [TransferEncChunked, TransferEncNone, TransferEncNone],
+  [TransferEncIdentity, TransferEncChunked, TransferEncNone],
+  [TransferEncGzip, TransferEncDeflate, TransferEncChunked],
+  [TransferEncNone, TransferEncNone, TransferEncNone],
+  [TransferEncGzip, TransferEncDeflate, TransferEncNone],
+  [TransferEncNone, TransferEncGzip, TransferEncDeflate],
+]
+
+const chunkedResponses = [
+  "4\r\n" &
+  "Wiki\r\n" &
+  "5\r\n" &
+  "pedia\r\n" &
+  "E\r\n" &
+  " in\r\n" &
+  "\r\n" &
+  "chunks.\r\n" &
+  "0\r\n" &
+  "\r\n",
+  "7\r\n" &
+  "Mozilla\r\n" &
+  "9\r\n" &
+  "Developer\r\n" &
+  "7\r\n" &
+  "Network\r\n" &
+  "0\r\n" &
+  "\r\n"
+]
+
+const chunkedResponsesText = [
+  "Wikipedia in\r\n\r\nchunks.",
+  "MozillaDeveloperNetwork"
+]
+
 suite "HTTP Procedures test suite":
   test "HTTP Request Vectors":
     for i in 0..<len(RequestVectors):
@@ -391,3 +447,46 @@ suite "HTTP Procedures test suite":
       $MethodConnect == "CONNECT"
       $MethodPatch == "PATCH"
       $MethodError == "ERROR"
+
+  test "HTTP transfer encoding vectors":
+    for i, v in transferEncodingVectors:
+      var header = parseResponse(cast[seq[char]](v))
+      var modes  = transferEncodingModes[i]
+      var x = 0
+      for mode in header.transferEncoding:
+        check mode == modes[x]
+        inc x
+
+    proc parseChunked(response: string): string =
+      var
+        line: string
+        pos = 0
+
+      while true:
+        pos = pos + parseUntil(response, line, "\r\n", pos)
+        inc(pos, 2)
+        let length = line.chunkedLength()
+        if length == 0: break
+        result.add response.substr(pos, pos+length-1)
+        inc(pos, length)
+        pos = pos + parseUntil(response, line, "\r\n", pos)
+        inc(pos, 2)
+        check line.len == 0
+
+    var i = 0
+    for response in chunkedResponses:
+      let text = parseChunked(response)
+      check text == chunkedResponsesText[i]
+      inc i
+
+    var line = "100;apple=banana"
+    var ext = chunkExtension(line)
+    check ext[0].name == "apple"
+    check ext[0].value == "banana"
+
+    line = "100;rabbit = carrot; monkey=\"ban\\\"\\a\\na\""
+    ext = chunkExtension(line)
+    check ext[0].name == "rabbit"
+    check ext[0].value == "carrot"
+    check ext[1].name == "monkey"
+    check ext[1].value == "ban\"ana"

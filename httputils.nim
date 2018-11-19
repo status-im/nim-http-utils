@@ -7,7 +7,7 @@
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
 
-import times, strutils
+import times, strutils, parseutils
 
 const
   ALPHA* = {'a'..'z', 'A'..'Z'}
@@ -177,6 +177,14 @@ type
     ## HTTP parser status type
     Success, Failure
 
+  HttpTransferEncoding* = enum
+    TransferEncNone,
+    TransferEncChunked,
+    TransferEncCompress,
+    TransferEncDeflate,
+    TransferEncGzip,
+    TransferEncIdentity
+
   HttpHeaderPart* = object
     ## HTTP offset representation object
     s*: int                  ## Start offset
@@ -208,6 +216,10 @@ type
     hdrs: seq[HttpHeader]
 
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader
+
+  ChunkExtension* = object
+    name*: string
+    value*: string
 
 template processHeaders(sm: untyped, state: var int, ch: char): int =
   var res = true
@@ -662,3 +674,109 @@ proc `$`*(m: HttpMethod): string =
     result = "PATCH"
   of MethodError:
     result = "ERROR"
+
+proc toTransferEncoding(text: string): HttpTransferEncoding =
+  case text:
+  of "chunked":
+    result = TransferEncChunked
+  of "compress":
+    result = TransferEncCompress
+  of "deflate":
+    result = TransferEncDeflate
+  of "gzip":
+    result = TransferEncGzip
+  of "identity":
+    result = TransferEncIdentity
+  else:
+    result = TransferEncNone
+
+iterator transferEncoding*(reqresp: HttpReqRespHeader): HttpTransferEncoding =
+  const x = "Transfer-Encoding"
+  if reqresp.contains(x):
+    let line = reqresp[x]
+    var
+      tmp = newStringOfCap(10)
+      pos = 0
+
+    while pos < line.len:
+      case line[pos]:
+      of SPACE: discard
+      of ',':
+        yield toTransferEncoding(tmp)
+        tmp.setLen(0)
+      else: tmp.add toLowerAscii(line[pos])
+      inc pos
+    yield toTransferEncoding(tmp)
+  else:
+    yield TransferEncNone
+
+proc chunkedLength*(line: string): int =
+  let comma = line.find(';')
+  if comma == -1:
+    result = line.parseHexInt()
+  else:
+    let L = line.parseHex(result, 0, comma-1)
+    if L != comma-1 or L == 0: result = 0
+
+const
+  VCHAR = {'\x21'..'\x7E'}
+  OBSTEXT = {'\x80'..'\xFF'}
+  DELIMITERS = {'(',')',',','/',':',';','<','=','>','?','@','[','\\',']','{','}'}
+  TCHAR = VCHAR + ALPHANUM + TOKEND - DELIMITERS
+  QDTEXT = VCHAR - {'"', '\\'} + SPACE + OBSTEXT
+  QPCHAR = SPACE + VCHAR + OBSTEXT
+
+proc skipSpaces(line: string, pos: var int) =
+  var p = pos
+  while p < line.len:
+    if line[p] in SPACE: inc p
+    else: break
+  pos = p
+
+proc parseToken(line: string, pos: var int): string =
+  var p = pos
+  result = ""
+  while p < line.len:
+    if line[p] in TCHAR:
+      result.add line[p]
+      inc p
+    else: break
+  pos = p
+
+proc parseQuotedString(line: string, pos: var int): string =
+  var p = pos
+  inc p
+  result = ""
+  while p < line.len:
+    if line[p] in QDTEXT:
+      result.add line[p]
+      inc p
+    elif line[p] == '\\':
+      inc p
+      if p < line.len and line[p] in QPCHAR:
+        result.add line[p]
+        inc p
+    else: break
+  if p < line.len and line[p] == '"':
+    inc p
+  pos = p
+
+proc chunkExtension*(line: string): seq[ChunkExtension] =
+  result = @[]
+  var pos = line.find(';')
+  if pos == -1:
+    return
+
+  while pos < line.len:
+    if pos < line.len and line[pos] == ';':
+      inc pos
+    line.skipSpaces(pos)
+    # parse name
+    let name = line.parseToken(pos)
+    line.skipSpaces(pos)
+    if pos < line.len and line[pos] == '=':
+      inc pos
+    line.skipSpaces(pos)
+    let value = if line[pos] == '"': line.parseQuotedString(pos)
+                else: line.parseToken(pos)
+    result.add ChunkExtension(name: name, value: value)

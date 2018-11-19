@@ -29,7 +29,6 @@ nim doc httputils.nim
 
 ## TODO
 
-* Chunked encoding parsers
 * HTTP Date fields parsers
 
 ## Contributing
