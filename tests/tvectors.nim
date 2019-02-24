@@ -70,7 +70,10 @@ const RequestVectors = [
     "\r\n",
   "GET / HTTP/0.9\r\n" &
     "Content-Length: 99223372036854775807\r\n" &
-    "\r\n"
+    "\r\n",
+  "POST / HTTP/1.1\r\n" &
+    "Host:example.amazonaws.com\r\n" &
+    "X-Amz-Date:20150830T123600Z\r\n\r\nhello"
 ]
 
 const RequestHeaderTexts = [
@@ -113,26 +116,29 @@ const RequestHeaderTexts = [
 
   (k: "Server", v: ""),
 
-  (k: "Content-Length", v: "99223372036854775807")
+  (k: "Content-Length", v: "99223372036854775807"),
+
+  (k: "Host", v: "example.amazonaws.com"),
+  (k: "X-Amz-Date", v: "20150830T123600Z")
 ]
 
 const RequestResults = [
   0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0xC2, 0x8E, 0x8E,
   0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E,
-  0x8E
+  0x8E, 0x8E
 ]
 
 const RequestHeaders = [
   (0, 2), (3, 10), (11, 11), (0, -1), (0, -1), (12, 12), (13, 13), (14, 16),
   (0, -1), (17, 19), (20, 23), (0, -1), (0, -1), (0, -1), (0, -1), (0, -1),
-  (0, -1), (0, -1), (0, -1), (24, 24), (25, 26), (27, 27), (28, 28)
+  (0, -1), (0, -1), (0, -1), (24, 24), (25, 26), (27, 27), (28, 28), (29, 30)
 ]
 
 const RequestMethods = [
   MethodGet, MethodGet, MethodGet, MethodGet, MethodGet, MethodPost, MethodGet,
   MethodPost, MethodGet, MethodConnect, MethodPut, MethodGet, MethodPost,
   MethodPut, MethodPatch, MethodDelete, MethodOptions, MethodTrace,
-  MethodConnect, MethodConnect, MethodPost, MethodTrace, MethodGet
+  MethodConnect, MethodConnect, MethodPost, MethodTrace, MethodGet, MethodPost
 ]
 
 const RequestVersions = [
@@ -140,7 +146,7 @@ const RequestVersions = [
   HttpVersion20, HttpVersion10, HttpVersion11, HttpVersion11, HttpVersion10,
   HttpVersion11, HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion10,
   HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion20,
-  HttpVersion11, HttpVersion11, HttpVersion09
+  HttpVersion11, HttpVersion11, HttpVersion09, HttpVersion11
 ]
 
 const RequestUris = [
@@ -149,11 +155,11 @@ const RequestUris = [
   "/get_funky_content_length_body_hello", "/post_identity_body_world?q=search#hey",
   "/with_\"stupid\"_quotes?foo=\"bar\"", "foo.bar.com:443",
   "/!#$&'()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz~",
-  "/", "/", "/", "/", "/", "/", "/", "/", "/", "/empty_header", "/", "/"
+  "/", "/", "/", "/", "/", "/", "/", "/", "/", "/empty_header", "/", "/", "/"
 ]
 
 const RequestCLengths = [
-  0, 0, 0, 0, 0, 0, 5, 5, -1, 10, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1
+  0, 0, 0, 0, 0, 0, 5, 5, -1, 10, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0
 ]
 
 const ResponseVectors = [

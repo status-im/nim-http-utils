@@ -196,6 +196,7 @@ type
     url: HttpHeaderPart
     state*: int
     hdrs: seq[HttpHeader]
+    length*: int             ## HTTP headers length
 
   HttpResponseHeader* = object
     ## HTTP response header
@@ -206,6 +207,7 @@ type
     rsn: HttpHeaderPart
     state*: int
     hdrs: seq[HttpHeader]
+    length*: int              ## HTTP headers length
 
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader
 
@@ -311,6 +313,13 @@ proc processCode(data: seq[char], s, e: int): int =
 
 proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
   ## Parse sequence of characters or bytes as HTTP request header.
+  ##
+  ## Note: to prevent unnecessary allocations source array ``data`` will be
+  ## be shallow copied to result and all parsed fields will have references to
+  ## this buffer. If you plan to change contents of ``data`` while parsing
+  ## request and/or processing headers, please make a real copy of ``data`` and
+  ## pass copy to ``parseRequest(data)``.
+  ##
   ## Returns `HttpRequestHeader` instance.
   var
     index = 0
@@ -392,7 +401,9 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       result.hdrs.add(hdr)
       start = -1
     of 0x8E:
+      result.length = index + 1
       result.status = HttpStatus.Success
+      break
     of 0xC0..0xCF:
       # error
       break
@@ -489,7 +500,9 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       result.hdrs.add(hdr)
       start = -1
     of 0x9F:
+      result.length = index + 1
       result.status = HttpStatus.Success
+      break
     of 0xC0..0xCF:
       # error
       break
@@ -586,7 +599,13 @@ proc len*(reqresp: HttpReqRespHeader): int =
   if reqresp.success():
     result = len(reqresp.hdrs)
 
+proc size*(reqresp: HttpReqRespHeader): int =
+  ## Returns size of HTTP headers in octets (bytes).
+  if reqresp.success():
+    result = reqresp.length
+
 proc `$`*(version: HttpVersion): string =
+  ## Return string representation of HTTP version ``version``.
   case version
   of HttpVersion09:
     result = "HTTP/0.9"
