@@ -406,3 +406,22 @@ suite "HTTP Procedures test suite":
       $MethodConnect == "CONNECT"
       $MethodPatch == "PATCH"
       $MethodError == "ERROR"
+
+  test "Validate header name/value":
+    var chs = " "
+    for a in 0..255:
+      if chr(a) notin HEADERNAME:
+        chs[0] = chr(a)
+        check checkHeaderName(chs) == false
+      else:
+        chs[0] = chr(a)
+        check checkHeaderName(chs) == true
+
+    chs = " "
+    for a in 0..255:
+      if chr(a) notin {'\r', '\n'}:
+        chs[0] = chr(a)
+        check checkHeaderValue(chs) == true
+      else:
+        chs[0] = chr(a)
+        check checkHeaderValue(chs) == false

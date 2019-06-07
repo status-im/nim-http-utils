@@ -28,6 +28,7 @@ const
   TOKENURI = TOKEND * URITOKEND - DOT
   TOKENONLY = TOKEND - URITOKEND - DOT
   URIONLY = URITOKEND - TOKEND - COLON - SLASH - DOT
+  HEADERNAME* = ALPHANUM + TOKENURI + TOKENONLY + DOT
 
   # Legend:
   # [0x81, 0x8D] - markers
@@ -671,3 +672,24 @@ proc `$`*(m: HttpMethod): string =
   of MethodConnect: "CONNECT"
   of MethodPatch:   "PATCH"
   of MethodError:   "ERROR"
+
+proc checkHeaderName*(value: string): bool =
+  ## Validates ``value`` as `header field name` string and returns ``true``
+  ## on success.
+  if len(value) == 0:
+    result = false
+  else:
+    result = true
+    for ch in value:
+      if ch notin HEADERNAME:
+        result = false
+        break
+
+proc checkHeaderValue*(value: string): bool =
+  ## Validates ``value`` as `header field value` string and returns ``true``
+  ## on success.
+  result = true
+  for ch in value:
+    if (ch == CR) or (ch == LF):
+      result = false
+      break
