@@ -543,6 +543,19 @@ proc contains*(reqresp: HttpReqRespHeader, header: string): bool =
       if reqresp.data.compare(item, header) == 0:
         result = true
 
+proc toString(data: openarray[byte], start, stop: int): string =
+  ## Slice a raw data blob into a string
+  ## This is an inclusive slice
+  ## The output string is null-terminated for raw C-compat
+  assert start in 0 ..< data.len
+  assert stop in 0 ..< data.len
+
+  let len = stop - start + 1
+  assert len in 0 ..< data.len
+
+  result = newString(len)
+  copyMem(result[0].addr, data[start].unsafeAddr, len)
+
 proc `[]`*(reqresp: HttpReqRespHeader, header: string): string =
   ## Retrieve HTTP header value from ``reqresp`` with key ``header``.
   if reqresp.success():
@@ -551,7 +564,7 @@ proc `[]`*(reqresp: HttpReqRespHeader, header: string): string =
         if item.value.s == -1 and item.value.e == -1:
           result = ""
         else:
-          result = cast[string](reqresp.data[item.value.s..item.value.e])
+          result = reqresp.data.toString(item.value.s, item.value.e)
         break
 
 iterator headers*(reqresp: HttpReqRespHeader,
@@ -562,12 +575,12 @@ iterator headers*(reqresp: HttpReqRespHeader,
   if reqresp.success():
     for item in reqresp.hdrs:
       if len(key) == 0:
-        var name = cast[string](reqresp.data[item.name.s..item.name.e])
+        var name = reqresp.data.toString(item.name.s, item.name.e)
         var value: string
         if item.value.s == -1 and item.value.e == -1:
           value = ""
         else:
-          value = cast[string](reqresp.data[item.value.s..item.value.e])
+          value = reqresp.data.toString(item.value.s, item.value.e)
         yield (name, value)
       else:
         if reqresp.data.compare(item, key) == 0:
@@ -576,7 +589,7 @@ iterator headers*(reqresp: HttpReqRespHeader,
           if item.value.s == -1 and item.value.e == -1:
             value = ""
           else:
-            value = cast[string](reqresp.data[item.value.s..item.value.e])
+            value = reqresp.data.toString(item.value.s, item.value.e)
           yield (name, value)
 
 proc uri*(request: HttpRequestHeader): string =
@@ -585,7 +598,7 @@ proc uri*(request: HttpRequestHeader): string =
     if request.url.s == -1 and request.url.e == -1:
       result = ""
     else:
-      result = cast[string](request.data[request.url.s..request.url.e])
+      result = request.data.toString(request.url.s, request.url.e)
 
 proc reason*(response: HttpResponseHeader): string =
   ## Returns HTTP reason string from ``response``.
@@ -593,7 +606,7 @@ proc reason*(response: HttpResponseHeader): string =
     if response.rsn.s == -1 and response.rsn.e == -1:
       result = ""
     else:
-      result = cast[string](response.data[response.rsn.s..response.rsn.e])
+      result = response.data.toString(response.rsn.s, response.rsn.e)
 
 proc len*(reqresp: HttpReqRespHeader): int =
   ## Returns number of headers in ``reqresp``.
