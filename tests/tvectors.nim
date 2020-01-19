@@ -333,6 +333,10 @@ suite "HTTP Procedures test suite":
         check:
           req.success() == true
           req.uri() == RequestUris[i]
+          block: # Check null-termination for cstring compat
+            let uri = req.uri()
+            let puri = cast[ptr UncheckedArray[char]](uri[0].unsafeAddr)
+            puri[uri.len] == '\0'
           req.version == RequestVersions[i]
           len(req) == RequestHeaders[i][1] - RequestHeaders[i][0] + 1
           req.contentLength() == RequestCLengths[i]
