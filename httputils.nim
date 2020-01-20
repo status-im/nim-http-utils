@@ -547,8 +547,6 @@ proc toString(data: openarray[byte], start, stop: int): string =
   ## Slice a raw data blob into a string
   ## This is an inclusive slice
   ## The output string is null-terminated for raw C-compat
-  assert stop in start ..< data.len
-
   let len = stop - start + 1
   result = newString(len)
   copyMem(result[0].addr, data[start].unsafeAddr, len)
