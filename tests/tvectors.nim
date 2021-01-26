@@ -141,14 +141,6 @@ const RequestHeaders = [
   (31, 32)
 ]
 
-const RequestMethods = [
-  MethodGet, MethodGet, MethodGet, MethodGet, MethodGet, MethodPost, MethodGet,
-  MethodPost, MethodGet, MethodConnect, MethodPut, MethodGet, MethodPost,
-  MethodPut, MethodPatch, MethodDelete, MethodOptions, MethodTrace,
-  MethodConnect, MethodConnect, MethodPost, MethodTrace, MethodGet, MethodPost,
-  MethodGet
-]
-
 const RequestVersions = [
   HttpVersion11, HttpVersion11, HttpVersion11, HttpVersion11, HttpVersion10,
   HttpVersion20, HttpVersion10, HttpVersion11, HttpVersion11, HttpVersion10,
@@ -429,3 +421,16 @@ suite "HTTP Procedures test suite":
       else:
         chs[0] = chr(a)
         check checkHeaderValue(chs) == false
+
+  test "Parsing headers test":
+    var headersStr = ""
+    for item in ResponseHeaderTexts:
+      let line = item.k & ": " & item.v & "\r\n"
+      headersStr.add(line)
+    headersStr.add("\r\n")
+    var headersSeq = newSeq[byte](len(headersStr))
+    copyMem(addr headersSeq[0], addr headersStr[0], len(headersSeq))
+    let list = parseHeaders(headersSeq)
+    check:
+      list.success() == true
+      len(list) == len(ResponseHeaderTexts)
