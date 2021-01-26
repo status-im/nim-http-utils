@@ -199,6 +199,14 @@ type
     hdrs: seq[HttpHeader]
     length*: int             ## HTTP headers length
 
+  HttpHeadersList* = object
+    ## HTTP request headers list
+    data: seq[byte]
+    state*: int
+    status*: HttpStatus
+    hdrs: seq[HttpHeader]
+    length*: int
+
   HttpResponseHeader* = object
     ## HTTP response header
     data: seq[byte]           ## Data blob
@@ -210,10 +218,9 @@ type
     hdrs: seq[HttpHeader]
     length*: int              ## HTTP headers length
 
-  HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader
+  HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
 template processHeaders(sm: untyped, state: var int, ch: char): int =
-  var res = true
   var code = 0
   case ch
   of ALPHA:
@@ -380,6 +387,72 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
         break
       result.version = m
       start = -1
+    of 0x87, 0x8A, 0x8D:
+      discard
+    of 0x88:
+      start = index
+    of 0x89:
+      if start == -1:
+        break
+      finish = index - 1
+      hdr.name = HttpHeaderPart(s: start, e: finish)
+      start = -1
+    of 0x8B:
+      start = index
+    of 0x8C:
+      if start == -1:
+        # empty header
+        hdr.value = HttpHeaderPart(s: -1, e: -1)
+      else:
+        finish = index - 1
+        hdr.value = HttpHeaderPart(s: start, e: finish)
+      result.hdrs.add(hdr)
+      start = -1
+    of 0x8E:
+      result.length = index + 1
+      result.status = HttpStatus.Success
+      break
+    of 0xC0..0xCF:
+      # error
+      break
+    of 0x00..0x0F:
+      # data processing
+      discard
+    else:
+      # must not be happened
+      break
+    inc(index)
+
+proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
+  ## Parse sequence of characters or bytes as HTTP headers list.
+  ##
+  ## Note: to prevent unnecessary allocations source array ``data`` will be
+  ## be shallow copied to result and all parsed fields will have references to
+  ## this buffer. If you plan to change contents of ``data`` while parsing
+  ## request and/or processing headers, please make a real copy of ``data`` and
+  ## pass copy to ``parseRequest(data)``.
+  ##
+  ## Returns `HttpRequestHeader` instance.
+  var
+    index = 0
+    state = 8
+    start = 0
+    finish = 0
+    hdr: HttpHeader
+
+  result.status = HttpStatus.Failure
+  result.hdrs = newSeq[HttpHeader]()
+
+  if len(data) == 0:
+    return
+
+  # Preserve ``data`` sequence in our object.
+  shallowCopy(result.data, cast[seq[byte]](data))
+
+  while index < len(data):
+    let ps = requestSM.processHeaders(state, char(data[index]))
+    result.state = ps
+    case ps
     of 0x87, 0x8A, 0x8D:
       discard
     of 0x88:
