@@ -251,49 +251,50 @@ template processHeaders(sm: untyped, state: var int, ch: char): int =
   state = newstate and 0x0F
   newstate
 
-proc processMethod(data: seq[char], s, e: int): HttpMethod =
-  result = HttpMethod.MethodError
+proc processMethod(data: openarray[char], s, e: int): HttpMethod =
   let length = e - s + 1
   case char(data[s])
   of 'G':
     if length == 3:
       if data[s + 1] == 'E' and data[s + 2] == 'T':
-        result = MethodGet
+        return MethodGet
   of 'P':
     if length == 3:
       if data[s + 1] == 'U' and data[s + 2] == 'T':
-        result = MethodPut
+        return MethodPut
     elif length == 4:
       if data[s + 1] == 'O' and data[s + 2] == 'S' and data[s + 3] == 'T':
-        result = MethodPost
+        return MethodPost
     elif length == 5:
       if data[s + 1] == 'A' and data[s + 2] == 'T' and data[s + 3] == 'C' and
          data[s + 4] == 'H':
-        result = MethodPatch
+        return MethodPatch
   of 'D':
     if length == 6:
       if data[s + 1] == 'E' and data[s + 2] == 'L' and data[s + 3] == 'E' and
          data[s + 4] == 'T' and data[s + 5] == 'E':
-        result = MethodDelete
+        return MethodDelete
   of 'T':
     if length == 5:
       if data[s + 1] == 'R' and data[s + 2] == 'A' and data[s + 3] == 'C' and
          data[s + 4] == 'E':
-       result = MethodTrace
+       return MethodTrace
   of 'O':
     if length == 7:
       if data[s + 1] == 'P' and data[s + 2] == 'T' and data[s + 3] == 'I' and
          data[s + 4] == 'O' and data[s + 5] == 'N' and data[s + 6] == 'S':
-        result = MethodOptions
+        return MethodOptions
   of 'C':
     if length == 7:
       if data[s + 1] == 'O' and data[s + 2] == 'N' and data[s + 3] == 'N' and
          data[s + 4] == 'E' and data[s + 5] == 'C' and data[s + 6] == 'T':
-        result = MethodConnect
+        return MethodConnect
   else:
     discard
 
-proc processVersion(data: seq[char], s, e: int): HttpVersion =
+  return HttpMethod.MethodError
+
+proc processVersion(data: openarray[char], s, e: int): HttpVersion =
   result = HttpVersionError
   let length = e - s + 1
   if length == 8:
@@ -301,32 +302,32 @@ proc processVersion(data: seq[char], s, e: int): HttpVersion =
        data[s + 3] == 'P' and data[s + 4] == '/':
       if data[s + 5] == '1' and data[s + 6] == '.':
         if data[s + 7] == '0':
-          result = HttpVersion10
+          return HttpVersion10
         elif data[s + 7] == '1':
-          result = HttpVersion11
+          return HttpVersion11
       elif data[s + 5] == '0' and data[s + 6] == '.':
         if data[s + 7] == '9':
-          result = HttpVersion09
+          return HttpVersion09
       elif data[s + 5] == '2' and data[s + 6] == '.':
         if data[s + 7] == '0':
-          result = HttpVersion20
+          return HttpVersion20
+  return HttpVersionError
 
-proc processCode(data: seq[char], s, e: int): int =
-  result = -1
+proc processCode(data: openarray[char], s, e: int): int =
+  var res = -1
   let length = e - s + 1
   if length == 3:
-    result = (ord(data[s]) - ord('0')) * 100 +
-             (ord(data[s + 1]) - ord('0')) * 10 +
-             ord(data[s + 2]) - ord('0')
+    res = (ord(data[s]) - ord('0')) * 100 +
+          (ord(data[s + 1]) - ord('0')) * 10 +
+           ord(data[s + 2]) - ord('0')
+  res
 
-proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
-  ## Parse sequence of characters or bytes as HTTP request header.
+proc parseRequest*[T: char|byte](data: openarray[T],
+                                 makeCopy: bool): HttpRequestHeader =
+  ## Parse sequence of characters or bytes ``data`` as HTTP request header.
   ##
-  ## Note: to prevent unnecessary allocations source array ``data`` will be
-  ## be shallow copied to result and all parsed fields will have references to
-  ## this buffer. If you plan to change contents of ``data`` while parsing
-  ## request and/or processing headers, please make a real copy of ``data`` and
-  ## pass copy to ``parseRequest(data)``.
+  ## If `makeCopy` flag is ``true``, procedure will create a copy of ``data``
+  ## in result.
   ##
   ## Returns `HttpRequestHeader` instance.
   var
@@ -336,20 +337,24 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
     finish = 0
     hdr: HttpHeader
 
-  result.status = HttpStatus.Failure
-  result.version = HttpVersionError
-  result.meth = MethodError
-  result.hdrs = newSeq[HttpHeader]()
+  var res = HttpRequestHeader(
+    status: HttpStatus.Failure,
+    version: HttpVersionError,
+    meth: MethodError,
+    hdrs: newSeq[HttpHeader]()
+  )
 
   if len(data) == 0:
-    return
+    return res
 
-  # Preserve ``data`` sequence in our object.
-  shallowCopy(result.data, cast[seq[byte]](data))
+  if makeCopy:
+    # Make copy of ``data`` sequence in our result object.
+    res.data = newSeq[byte](len(data))
+    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
 
   while index < len(data):
     let ps = requestSM.processHeaders(state, char(data[index]))
-    result.state = ps
+    res.state = ps
     case ps
     of 0x81:
       start = index
@@ -363,7 +368,7 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
         let m = processMethod(data, start, finish)
       if m == HttpMethod.MethodError:
         break
-      result.meth = m
+      res.meth = m
       start = -1
     of 0x83:
       start = index
@@ -371,7 +376,7 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       if start == -1:
         break
       finish = index - 1
-      result.url = HttpHeaderPart(s: start, e: finish)
+      res.url = HttpHeaderPart(s: start, e: finish)
       start = -1
     of 0x85:
       start = index
@@ -385,7 +390,7 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
         let m = processVersion(data, start, finish)
       if m == HttpVersion.HttpVersionError:
         break
-      result.version = m
+      res.version = m
       start = -1
     of 0x87, 0x8A, 0x8D:
       discard
@@ -406,11 +411,11 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       else:
         finish = index - 1
         hdr.value = HttpHeaderPart(s: start, e: finish)
-      result.hdrs.add(hdr)
+      res.hdrs.add(hdr)
       start = -1
     of 0x8E:
-      result.length = index + 1
-      result.status = HttpStatus.Success
+      res.length = index + 1
+      res.status = HttpStatus.Success
       break
     of 0xC0..0xCF:
       # error
@@ -423,8 +428,10 @@ proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
       break
     inc(index)
 
-proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
-  ## Parse sequence of characters or bytes as HTTP headers list.
+  res
+
+proc parseRequest*[T: char|byte](data: seq[T]): HttpRequestHeader =
+  ## Parse sequence of characters or bytes as HTTP request header.
   ##
   ## Note: to prevent unnecessary allocations source array ``data`` will be
   ## be shallow copied to result and all parsed fields will have references to
@@ -433,6 +440,18 @@ proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
   ## pass copy to ``parseRequest(data)``.
   ##
   ## Returns `HttpRequestHeader` instance.
+  var res = parseRequest(data, false)
+  shallowCopy(res.data, cast[seq[byte]](data))
+  res
+
+proc parseHeaders*[T: char|byte](data: openarray[T],
+                                 makeCopy: bool): HttpHeadersList =
+  ## Parse sequence of characters or bytes ``data`` as HTTP headers list.
+  ##
+  ## If `makeCopy` flag is ``true``, procedure will create a copy of ``data``
+  ## in result.
+  ##
+  ## Returns `HttpHeadersList` instance.
   var
     index = 0
     state = 8
@@ -440,18 +459,22 @@ proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
     finish = 0
     hdr: HttpHeader
 
-  result.status = HttpStatus.Failure
-  result.hdrs = newSeq[HttpHeader]()
+  var res = HttpHeadersList(
+    status: HttpStatus.Failure,
+    hdrs: newSeq[HttpHeader]()
+  )
 
   if len(data) == 0:
-    return
+    return res
 
-  # Preserve ``data`` sequence in our object.
-  shallowCopy(result.data, cast[seq[byte]](data))
+  if makeCopy:
+    # Make copy of ``data`` sequence in our result object.
+    res.data = newSeq[byte](len(data))
+    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
 
   while index < len(data):
     let ps = requestSM.processHeaders(state, char(data[index]))
-    result.state = ps
+    res.state = ps
     case ps
     of 0x87, 0x8A, 0x8D:
       discard
@@ -472,11 +495,11 @@ proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
       else:
         finish = index - 1
         hdr.value = HttpHeaderPart(s: start, e: finish)
-      result.hdrs.add(hdr)
+      res.hdrs.add(hdr)
       start = -1
     of 0x8E:
-      result.length = index + 1
-      result.status = HttpStatus.Success
+      res.length = index + 1
+      res.status = HttpStatus.Success
       break
     of 0xC0..0xCF:
       # error
@@ -488,9 +511,29 @@ proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
       # must not be happened
       break
     inc(index)
+  res
 
-proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
+proc parseHeaders*[T: char|byte](data: seq[T]): HttpHeadersList =
+  ## Parse sequence of characters or bytes as HTTP headers list.
+  ##
+  ## Note: to prevent unnecessary allocations source array ``data`` will be
+  ## be shallow copied to result and all parsed fields will have references to
+  ## this buffer. If you plan to change contents of ``data`` while parsing
+  ## request and/or processing headers, please make a real copy of ``data`` and
+  ## pass copy to ``parseHeaders(data)``.
+  ##
+  ## Returns `HttpHeadersList` instance.
+  var res = parseHeaders(data, false)
+  shallowCopy(res.data, cast[seq[byte]](data))
+  res
+
+proc parseResponse*[T: char|byte](data: openarray[T],
+                                  makeCopy: bool): HttpResponseHeader =
   ## Parse sequence of characters or bytes as HTTP response header.
+  ##
+  ## If `makeCopy` flag is ``true``, procedure will create a copy of ``data``
+  ## in result.
+  ##
   ## Returns `HttpResponseHeader` instance.
   var
     index = 0
@@ -499,20 +542,24 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
     finish = 0
     hdr: HttpHeader
 
-  result.status = HttpStatus.Failure
-  result.version = HttpVersionError
-  result.code = -1
-  result.hdrs = newSeq[HttpHeader]()
+  var res = HttpResponseHeader(
+    status: HttpStatus.Failure,
+    version: HttpVersionError,
+    code: -1,
+    hdrs: newSeq[HttpHeader]()
+  )
 
   if len(data) == 0:
     return
 
-  # Preserve ``data`` sequence in our object.
-  shallowCopy(result.data, cast[seq[byte]](data))
+  if makeCopy:
+    # Make copy of ``data`` sequence in our result object.
+    res.data = newSeq[byte](len(data))
+    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
 
   while index < len(data):
     let ps = responseSM.processHeaders(state, char(data[index]))
-    result.state = ps
+    res.state = ps
     case ps
     of 0x81:
       start = index
@@ -526,7 +573,7 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
         let m = processVersion(data, start, finish)
       if m == HttpVersion.HttpVersionError:
         break
-      result.version = m
+      res.version = m
       start = -1
     of 0x83:
       start = index
@@ -540,9 +587,9 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
         let m = processCode(data, start, finish)
       if m == -1:
         break
-      result.code = m
+      res.code = m
       if ps == 0x84:
-        result.rsn = HttpHeaderPart(s: -1, e: -1)
+        res.rsn = HttpHeaderPart(s: -1, e: -1)
       start = -1
     of 0x86:
       start = index
@@ -550,7 +597,7 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       if start == -1:
         break
       finish = index - 1
-      result.rsn = HttpHeaderPart(s: start, e: finish)
+      res.rsn = HttpHeaderPart(s: start, e: finish)
       start = -1
     of 0x88, 0x89, 0x8C, 0x8F:
       discard
@@ -571,11 +618,11 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       else:
         finish = index - 1
         hdr.value = HttpHeaderPart(s: start, e: finish)
-      result.hdrs.add(hdr)
+      res.hdrs.add(hdr)
       start = -1
     of 0x9F:
-      result.length = index + 1
-      result.status = HttpStatus.Success
+      res.length = index + 1
+      res.status = HttpStatus.Success
       break
     of 0xC0..0xCF:
       # error
@@ -587,6 +634,21 @@ proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
       # must not be happened
       break
     inc(index)
+  res
+
+proc parseResponse*[T: char|byte](data: seq[T]): HttpResponseHeader =
+  ## Parse sequence of characters or bytes as HTTP response header.
+  ##
+  ## Note: to prevent unnecessary allocations source array ``data`` will be
+  ## be shallow copied to result and all parsed fields will have references to
+  ## this buffer. If you plan to change contents of ``data`` while parsing
+  ## request and/or processing headers, please make a real copy of ``data`` and
+  ## pass copy to ``parseResponse(data)``.
+  ##
+  ## Returns `HttpResponseHeader` instance.
+  var res = parseResponse(data, false)
+  shallowCopy(res.data, cast[seq[byte]](data))
+  res
 
 template success*(reqresp: HttpReqRespHeader): bool =
   ## Returns ``true`` is ``reqresp`` was successfully parsed.
@@ -596,17 +658,18 @@ template failed*(reqresp: HttpReqRespHeader): bool =
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
-proc compare(data: seq[byte], header: HttpHeader, key: string): int =
+proc compare(data: openarray[byte], header: HttpHeader, key: string): int =
   ## Case-insensitive comparison function.
   let length = header.name.e - header.name.s + 1
-  result = length - len(key)
-  if result == 0:
+  var res = length - len(key)
+  if res == 0:
     var idx = 0
     for i in header.name.s..header.name.e:
-      result = ord(toLowerAscii(char(data[i]))) - ord(toLowerAscii(key[idx]))
-      if result != 0:
-        return
+      res = ord(toLowerAscii(char(data[i]))) - ord(toLowerAscii(key[idx]))
+      if res != 0:
+        return res
       inc(idx)
+  res
 
 proc contains*(reqresp: HttpReqRespHeader, header: string): bool =
   ## Return ``true``, if header with key ``header`` exists in `reqresp` object.
@@ -620,9 +683,9 @@ proc toString(data: openarray[byte], start, stop: int): string =
   ## Slice a raw data blob into a string
   ## This is an inclusive slice
   ## The output string is null-terminated for raw C-compat
-  let len = stop - start + 1
-  result = newString(len)
-  copyMem(result[0].addr, data[start].unsafeAddr, len)
+  let length = stop - start + 1
+  result = newString(length)
+  copyMem(result[0].addr, unsafeAddr data[start], length)
 
 proc `[]`*(reqresp: HttpReqRespHeader, header: string): string =
   ## Retrieve HTTP header value from ``reqresp`` with key ``header``.
@@ -660,6 +723,32 @@ iterator headers*(reqresp: HttpReqRespHeader,
             value = reqresp.data.toString(item.value.s, item.value.e)
           yield (name, value)
 
+iterator headers*(reqresp: HttpReqRespHeader,
+                  buffer: openarray[byte],
+                  key: string = ""): tuple[name: string, value: string] =
+  ## Iterates over all or specific headers  in ``reqresp`` headers object.
+  ## You can specify ``key` string to iterate only over headers which has key
+  ## equal to ``key`` string.
+  if reqresp.success():
+    for item in reqresp.hdrs:
+      if len(key) == 0:
+        var name = buffer.toString(item.name.s, item.name.e)
+        var value: string
+        if item.value.s == -1 and item.value.e == -1:
+          value = ""
+        else:
+          value = buffer.toString(item.value.s, item.value.e)
+        yield (name, value)
+      else:
+        if buffer.compare(item, key) == 0:
+          var name = key
+          var value: string
+          if item.value.s == -1 and item.value.e == -1:
+            value = ""
+          else:
+            value = buffer.toString(item.value.s, item.value.e)
+          yield (name, value)
+
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.
   if request.success():
@@ -668,6 +757,14 @@ proc uri*(request: HttpRequestHeader): string =
     else:
       result = request.data.toString(request.url.s, request.url.e)
 
+proc uri*(request: HttpRequestHeader, buffer: openarray[byte]): string =
+  ## Returns HTTP request URI as string from ``request``.
+  if request.success():
+    if request.url.s == -1 and request.url.e == -1:
+      result = ""
+    else:
+      result = buffer.toString(request.url.s, request.url.e)
+
 proc reason*(response: HttpResponseHeader): string =
   ## Returns HTTP reason string from ``response``.
   if response.success():
@@ -675,6 +772,14 @@ proc reason*(response: HttpResponseHeader): string =
       result = ""
     else:
       result = response.data.toString(response.rsn.s, response.rsn.e)
+
+proc reason*(response: HttpResponseHeader, buffer: openarray[byte]): string =
+  ## Returns HTTP reason string from ``response``.
+  if response.success():
+    if response.rsn.s == -1 and response.rsn.e == -1:
+      result = ""
+    else:
+      result = buffer.toString(response.rsn.s, response.rsn.e)
 
 proc len*(reqresp: HttpReqRespHeader): int =
   ## Returns number of headers in ``reqresp``.
@@ -690,15 +795,15 @@ proc `$`*(version: HttpVersion): string =
   ## Return string representation of HTTP version ``version``.
   case version
   of HttpVersion09:
-    result = "HTTP/0.9"
+    "HTTP/0.9"
   of HttpVersion10:
-    result = "HTTP/1.0"
+    "HTTP/1.0"
   of HttpVersion11:
-    result = "HTTP/1.1"
+    "HTTP/1.1"
   of HttpVersion20:
-    result = "HTTP/2.0"
+    "HTTP/2.0"
   else:
-    result = "HTTP/1.0"
+    "HTTP/1.0"
 
 {.push overflowChecks: off.}
 proc contentLength*(reqresp: HttpReqRespHeader): int =
