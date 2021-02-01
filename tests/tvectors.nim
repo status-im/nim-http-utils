@@ -434,3 +434,42 @@ suite "HTTP Procedures test suite":
     check:
       list.success() == true
       len(list) == len(ResponseHeaderTexts)
+
+  test "Content-Disposition test vectors":
+    proc runDispTest(test: string): auto =
+      let cdisp = parseDisposition(test, true)
+      var fields: seq[tuple[k: string, v: string]]
+      if cdisp.success():
+
+        for k, v in cdisp.fields():
+          fields.add((k, v))
+        (true, cdisp.dispositionType(), fields)
+      else:
+        (false, "", fields)
+
+    check:
+      runDispTest("") == (false, "", @[])
+      runDispTest("a") == (true, "a", @[])
+      runDispTest("aa") == (true, "aa", @[])
+      runDispTest("form-data") == (true, "form-data", @[])
+      runDispTest("form-data; name=token5; value=token6") ==
+        (true, "form-data", @[("name", "token5"), ("value", "token6")])
+      runDispTest("form-data; name=\"quoted1\"; filename=\"quoted2.txt\"") ==
+        (true, "form-data", @[("name", "quoted1"), ("filename", "quoted2.txt")])
+      runDispTest("form-data; filename=\"quoted.txt\";name=noquote") ==
+        (true, "form-data", @[("filename", "quoted.txt"), ("name", "noquote")])
+      runDispTest("form-data; filename=\"123\\\"\\\"\\\"456\"") ==
+        (true, "form-data", @[("filename", "123\"\"\"456")])
+      runDispTest("form-data; filename=123\"") == (false, "", @[])
+      runDispTest("form-data; filename=123;") == (false, "", @[])
+      runDispTest("form-data; filename=123") ==
+        (true, "form-data", @[("filename", "123")])
+      runDispTest("form-data; filename=\"\"") ==
+        (true, "form-data", @[("filename", "")])
+      runDispTest("form-data; filename=") ==
+        (true, "form-data", @[("filename", "")])
+      runDispTest("form-data; a=;b=;c=;d=\"\";e=") ==
+        (true, "form-data", @[("a", ""), ("b", ""), ("c", ""), ("d", ""),
+                              ("e", "")])
+      runDispTest("form-data;a=\"''''\"") ==
+        (true, "form-data", @[("a", "''''")])
