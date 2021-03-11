@@ -1077,28 +1077,28 @@ proc contentLength*(reqresp: HttpReqRespHeader): int =
   ##
   ## If header is not present, ``0`` value will be returned, if value of header
   ## has non-integer value ``-1`` will be returned.
-  result = -1
+  const
+    MaxValue = high(int) div 10
+    MaxNumber = high(int) mod 10
   if reqresp.success():
     let nstr = reqresp["Content-Length"]
     if len(nstr) == 0:
-      result = 0
+      0
     else:
       let vstr = strip(nstr)
-      result = 0
+      var res = 0
       for i in 0..<len(vstr):
-        if vstr[i] in NUM:
-          var r = result
-          let digit = ord(vstr[i]) - ord('0')
-          r = r * 10 + digit
-          if r < result:
-            # overflow
-            result = -1
-            break
-          else:
-            result = r
-        else:
-          result = -1
-          break
+        let ch = vstr[i]
+        if ch notin NUM:
+          return -1
+        let digit = ord(ch) - ord('0')
+        if (res > MaxValue) or (res == MaxValue and digit > MaxNumber):
+          # overflow
+          return -1
+        res = res * 10 + digit
+      res
+  else:
+    -1
 {.pop.}
 
 proc httpDate*(datetime: DateTime): string =
