@@ -1146,3 +1146,54 @@ proc checkHeaderValue*(value: string): bool =
     if (ch == CR) or (ch == LF):
       result = false
       break
+
+proc toInt*(code: HttpCode): int =
+  ## Returns ``code`` as integer value.
+  case code
+    of Http100: 100
+    of Http101: 101
+    of Http200: 200
+    of Http201: 201
+    of Http202: 202
+    of Http203: 203
+    of Http204: 204
+    of Http205: 205
+    of Http206: 206
+    of Http300: 300
+    of Http301: 301
+    of Http302: 302
+    of Http303: 303
+    of Http304: 304
+    of Http305: 305
+    of Http307: 307
+    of Http400: 400
+    of Http401: 401
+    of Http403: 403
+    of Http404: 404
+    of Http405: 405
+    of Http406: 406
+    of Http407: 407
+    of Http408: 408
+    of Http409: 409
+    of Http410: 410
+    of Http411: 411
+    of Http412: 412
+    of Http413: 413
+    of Http414: 414
+    of Http415: 415
+    of Http416: 416
+    of Http417: 417
+    of Http418: 418
+    of Http421: 421
+    of Http422: 422
+    of Http426: 426
+    of Http428: 428
+    of Http429: 429
+    of Http431: 431
+    of Http451: 451
+    of Http500: 500
+    of Http501: 501
+    of Http502: 502
+    of Http503: 503
+    of Http504: 504
+    of Http505: 505
