@@ -440,7 +440,6 @@ suite "HTTP Procedures test suite":
       let cdisp = parseDisposition(test, true)
       var fields: seq[tuple[k: string, v: string]]
       if cdisp.success():
-
         for k, v in cdisp.fields():
           fields.add((k, v))
         (true, cdisp.dispositionType(), fields)
@@ -473,3 +472,6 @@ suite "HTTP Procedures test suite":
                               ("e", "")])
       runDispTest("form-data;a=\"''''\"") ==
         (true, "form-data", @[("a", "''''")])
+
+  test "Accept header test vectors":
+    discard
