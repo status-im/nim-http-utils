@@ -398,6 +398,25 @@ suite "HTTP Procedures test suite":
         for ei in ResponseHeaders[i][0]..ResponseHeaders[i][1]:
           check (resp[ResponseHeaderTexts[ei].k] == ResponseHeaderTexts[ei].v)
 
+  test "HTTP request methods test":
+    const MethodRequests = [
+      ("GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodGet),
+      ("POST / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodPost),
+      ("HEAD / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodHead),
+      ("PUT / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodPut),
+      ("DELETE / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodDelete),
+      ("TRACE / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodTrace),
+      ("OPTIONS / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodOptions),
+      ("CONNECT / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodConnect),
+      ("PATCH / HTTP/1.1\r\nHost: www.google.com\r\n\r\n", MethodPatch)
+    ]
+
+    for item in MethodRequests:
+      var req = parseRequest(item[0], true)
+      check:
+        req.success()
+        req.meth == item[1]
+
   test "HTTP methods conversion vectors":
     check:
       $MethodGet == "GET"

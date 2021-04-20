@@ -339,6 +339,11 @@ proc processMethod[T: Bchar](data: openarray[T], s, e: int): HttpMethod =
     if length == 3:
       if char(data[s + 1]) == 'E' and char(data[s + 2]) == 'T':
         return MethodGet
+  of 'H':
+    if length == 4:
+      if char(data[s + 1]) == 'E' and char(data[s + 2]) == 'A' and
+         char(data[s + 3]) == 'D':
+        return MethodHead
   of 'P':
     if length == 3:
       if char(data[s + 1]) == 'U' and char(data[s + 2]) == 'T':
@@ -1130,22 +1135,24 @@ proc checkHeaderName*(value: string): bool =
   ## Validates ``value`` as `header field name` string and returns ``true``
   ## on success.
   if len(value) == 0:
-    result = false
+    false
   else:
-    result = true
+    var res = true
     for ch in value:
       if ch notin HEADERNAME:
-        result = false
+        res = false
         break
+    res
 
 proc checkHeaderValue*(value: string): bool =
   ## Validates ``value`` as `header field value` string and returns ``true``
   ## on success.
-  result = true
+  var res = true
   for ch in value:
     if (ch == CR) or (ch == LF):
-      result = false
+      res = false
       break
+  res
 
 proc toInt*(code: HttpCode): int =
   ## Returns ``code`` as integer value.
