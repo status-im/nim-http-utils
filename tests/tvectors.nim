@@ -241,6 +241,9 @@ const ResponseVectors = [
     "\r\n",
   "HTTP/0.9 200\r\n" &
     "Content-Length: 99223372036854775807\r\n" &
+    "\r\n",
+  "HTTP/1.1 200 \r\n" &
+    "content-length: 458\r\n" &
     "\r\n"
 ]
 
@@ -301,28 +304,31 @@ const ResponseHeaderTexts = [
 
   (k: "Content-Length", v: "15"),
 
-  (k: "Content-Length", v: "99223372036854775807")
+  (k: "Content-Length", v: "99223372036854775807"),
+
+  (k: "Content-Length", v: "458")
 ]
 
 const ResponseResults = [ 0x9F, 0x9F, 0x9F, 0x9F, 0xC3, 0x9F, 0x9F, 0x9F, 0x9F,
-                          0x9F, 0x9F, 0x9F ]
+                          0x9F, 0x9F, 0x9F, 0x9F ]
 
 const ResponseHeaders = [ (0, 7), (8, 12), (0, -1), (0, -1), (0, -1), (13, 16),
                           (17, 25), (26, 36), (37, 45), (46, 46), (47, 47),
-                          (48, 48)]
+                          (48, 48), (49, 49)]
 
 const ResponseVersions = [HttpVersion11, HttpVersion10, HttpVersion11,
                           HttpVersion11, HttpVersion11, HttpVersion11,
                           HttpVersion10, HttpVersion11, HttpVersion11,
-                          HttpVersion20, HttpVersion09, HttpVersion09]
+                          HttpVersion20, HttpVersion09, HttpVersion09,
+                          HttpVersion11]
 
 const ResponseCodes = [301, 200, 404, 503, 200, 200, 301, 200, 301, 200, 200,
-                       200]
+                       200, 200]
 
 const ResponseReasons = ["Moved Permanently", "OK", "Not Found", "", "", "OK",
                          "Moved Permanently", "OK", "MovedPermanently",
-                         "Success", "", ""]
-const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1]
+                         "Success", "", "", ""]
+const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1, 458]
 
 suite "HTTP Procedures test suite":
   test "HTTP Request Vectors":
