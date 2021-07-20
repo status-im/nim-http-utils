@@ -1,4 +1,4 @@
-import unittest, strutils
+import std/[unittest, strutils]
 import ../httputils
 
 # Some tests are borrowed from
@@ -508,3 +508,34 @@ suite "HTTP Procedures test suite":
 
   test "Accept header test vectors":
     discard
+
+  test "Q-value parser tests":
+    const FailureVectors = [
+      "1.0000", "0.0000", "2", "a", ".", "1#", "0#", "1.1", "1.2", "1.a",
+      "0.a", "1.01", "1.11", "1.10", "1.001", "1.010", "1.011", "1.100",
+      "1.101", "1.110", "1.111", "1.009", "0.00a", "0.0a0", "0.a00",
+      "1,", "1,0", "1,00", "1,000", "0,", "0,0", "0,00", "0,000", "0 ",
+      "0 00", "0 000", "1 000"
+    ]
+    check:
+      getQvalue("1").tryGet() == 1.0
+      getQvalue("0").tryGet() == 0.0
+      getQvalue("1.").tryGet() == 1.0
+      getQvalue("0.").tryGet() == 0.0
+      getQvalue("1.0").tryGet() == 1.0
+      getQvalue("0.0").tryGet() == 0.0
+      getQvalue("1.00").tryGet() == 1.0
+      getQvalue("0.00").tryGet() == 0.0
+      getQvalue("1.000").tryGet() == 1.0
+      getQvalue("0.000").tryGet() == 0.0
+
+    for i in 0 ..< 1000:
+      let qres = getQvalue("0." & $i)
+      check qres.isOk() == true
+
+    for i in 1 ..< 1000:
+      let qres = getQvalue("1." & $i)
+      check qres.isErr() == true
+
+    for item in FailureVectors:
+      check getQvalue(item).isErr() == true

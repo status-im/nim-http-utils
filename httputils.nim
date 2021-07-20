@@ -6,8 +6,10 @@
 #              Licensed under either of
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
+import std/[times, strutils]
+import stew/results
 
-import times, strutils
+export results
 
 const
   ALPHA* = {'a'..'z', 'A'..'Z'}
@@ -935,9 +937,7 @@ proc parseAcceptHeader*[T: BChar](data: openarray[T],
     hdr: HttpHeader
     mtype: AcceptMediaType
 
-  var res = AcceptHeader(
-    status: HttpStatus.Failure
-  )
+  var res = AcceptHeader(status: HttpStatus.Failure)
 
   if len(data) == 0:
     return res
@@ -1231,9 +1231,6 @@ iterator tuples*(header: AcceptHeader,
           let paramValue = buffer.toString(param.value.s, param.value.e)
           yield (mtype, paramName, paramValue)
 
-iterator parameters*(header: AcceptHeader, mtype: AcceptMediaType,
-                     buffer: openarray[byte])
-
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.
   if request.success():
@@ -1400,6 +1397,79 @@ proc checkHeaderValue*(value: string): bool =
       res = false
       break
   res
+
+proc getQvalue*(value: string): Result[float, cstring] =
+  ## Parse quality value string and returns floating point number. If quality
+  ## value string format is not acceptable error will be returned.
+  ## https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.9
+  const
+    IncorrectQValue = cstring"Incorrect q-value"
+    IncorrectQValueLength = cstring"Incorrect q-value length"
+  case len(value)
+  of 0:
+    ok(1.0)
+  of 1:
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 2:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 3:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if value[2] == '0':
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 4:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 5:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]) and isDigit(value[4]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0') and (value[4] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  else:
+    err(IncorrectQValueLength)
 
 proc toInt*(code: HttpCode): int =
   ## Returns ``code`` as integer value.
