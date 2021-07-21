@@ -1397,9 +1397,14 @@ iterator mediaItems*(header: AcceptHeader,
 
 proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
   var res: seq[AcceptMediaItem]
-  let header = parseAcceptHeader(value, false)
+  var toparse =
+    if len(value) == 0:
+      "*/*"
+    else:
+      value
+  let header = parseAcceptHeader(toparse, false)
   if header.success():
-    for item in header.mediaItems(value.toOpenArrayByte(0, len(value) - 1)):
+    for item in header.mediaItems(toparse.toOpenArrayByte(0, len(toparse) - 1)):
       res.add(item)
     res.sort(cmp, SortOrder.Descending)
     ok(AcceptInfo(data: res))

@@ -687,6 +687,11 @@ suite "HTTP Procedures test suite":
           ("image/x-xbitmap", "", 1.0),
           ("*/*", "q=0.1", 0.1)
         ]
+      ),
+      ("",
+        @[
+          ("*/*", "", 1.0)
+        ]
       )
     ]
 
