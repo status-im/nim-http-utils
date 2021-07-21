@@ -312,9 +312,12 @@ type
     status*: HttpStatus
     mediaTypes*: seq[AcceptMediaType]
 
+  MediaType* = object
+    media*: string
+    subtype*: string
+
   AcceptMediaItem* = object
-    mtype*: string
-    stype*: string
+    mediaType*: MediaType
     qvalue*: float
     params*: seq[tuple[name: string, value: string]]
 
@@ -1192,13 +1195,29 @@ iterator fields*(header: ContentDispositionHeader,
           buffer.toString(item.value.s, item.value.e)
       yield(name, value.replace("\\\"", "\""))
 
+proc init*(t: typedesc[MediaType], s: string): MediaType =
+  let parts = s.split("/", 1)
+  case len(parts)
+  of 1:
+    MediaType(media: parts[0], subtype: "*")
+  of 2:
+    MediaType(media: parts[0], subtype: parts[1])
+  else:
+    MediaType(media: "*", subytpe: "*")
+
+proc init*(t: typedesc[MediaType], media: string, subtype: string): MediaType =
+  MediaType(media: media, subtype: subtype)
+
+proc `$`*(s: MediaType): string =
+  s.media & "/" & s.subtype
+
 proc `$`*(s: AcceptMediaItem): string =
   ## Returns string representation of AcceptMediaItem object.
   if len(s.params) > 0:
     let params = s.params.mapIt(it.name & "=" & it.value).join(";")
-    s.mtype & "/" & s.stype & ";" & params
+    $s.mediaType & ";" & params
   else:
-    s.mtype & "/" & s.stype
+    $s.mediaType
 
 proc `$`*(s: AcceptInfo): string =
   ## Returns string representation of AcceptInfo object.
@@ -1208,10 +1227,6 @@ proc mediaType*(s: AcceptMediaType, buffer: openarray[byte]): string =
   ## Returns media type/subtype as string.
   buffer.toString(s.mtype.s, s.mtype.e) & "/" &
     buffer.toString(s.stype.s, s.stype.e)
-
-proc mediaType*(s: AcceptMediaItem): string =
-  ## Returns media type/subtype as string.
-  s.mtype & "/" & s.stype
 
 proc parameters*(s: AcceptMediaItem): string =
   ## Returns media type parameters as single string, if media type do not have
@@ -1322,7 +1337,8 @@ iterator mediaItems*(header: AcceptHeader): AcceptMediaItem =
       let mtype = header.data.toString(item.mtype.s, item.mtype.e)
       let stype = header.data.toString(item.stype.s, item.stype.e)
       if len(item.params) == 0:
-        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: 1.0)
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: 1.0)
       else:
         var qvalue: float = 1.0
         let params =
@@ -1341,8 +1357,8 @@ iterator mediaItems*(header: AcceptHeader): AcceptMediaItem =
                       res.get()
               res.add((name, value))
             res
-        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: qvalue,
-                              params: params)
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: qvalue, params: params)
 
 iterator mediaItems*(header: AcceptHeader,
                      buffer: openarray[byte]): AcceptMediaItem =
@@ -1356,7 +1372,8 @@ iterator mediaItems*(header: AcceptHeader,
       let mtype = buffer.toString(item.mtype.s, item.mtype.e)
       let stype = buffer.toString(item.stype.s, item.stype.e)
       if len(item.params) == 0:
-        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: 1.0)
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: 1.0)
       else:
         var qvalue: float = 1.0
         let params =
@@ -1375,8 +1392,8 @@ iterator mediaItems*(header: AcceptHeader,
                       res.get()
               res.add((name, value))
             res
-        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: qvalue,
-                              params: params)
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: qvalue, params: params)
 
 proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
   var res: seq[AcceptMediaItem]

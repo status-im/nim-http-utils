@@ -697,7 +697,7 @@ suite "HTTP Procedures test suite":
       check len(items) == len(vector[1])
       var expects = vector[1]
       for item in items:
-        let tocheck = (item.mediaType(), item.parameters(), item.qvalue)
+        let tocheck = ($item.mediaType, item.parameters(), item.qvalue)
         let index = expects.find(tocheck)
         check index >= 0
         expects.del(index)
