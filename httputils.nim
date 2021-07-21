@@ -6,9 +6,8 @@
 #              Licensed under either of
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
-import std/[times, strutils]
+import std/[times, strutils, algorithm, sequtils]
 import stew/results
-
 export results
 
 const
@@ -312,6 +311,15 @@ type
     state*: int
     status*: HttpStatus
     mediaTypes*: seq[AcceptMediaType]
+
+  AcceptMediaItem* = object
+    mtype*: string
+    stype*: string
+    qvalue*: float
+    params*: seq[tuple[name: string, value: string]]
+
+  AcceptInfo* = object
+    data*: seq[AcceptMediaItem]
 
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
@@ -949,7 +957,6 @@ proc parseAcceptHeader*[T: BChar](data: openarray[T],
 
   while index < len(data):
     let ps = acceptSM.processAcceptHeader(state, char(data[index]))
-    echo "index = ", index, " char = [", char(data[index]), "] ps = ", toHex(ps)
     res.state = ps
     case ps
     of 0x801:
@@ -1185,10 +1192,34 @@ iterator fields*(header: ContentDispositionHeader,
           buffer.toString(item.value.s, item.value.e)
       yield(name, value.replace("\\\"", "\""))
 
+proc `$`*(s: AcceptMediaItem): string =
+  ## Returns string representation of AcceptMediaItem object.
+  if len(s.params) > 0:
+    let params = s.params.mapIt(it.name & "=" & it.value).join(";")
+    s.mtype & "/" & s.stype & ";" & params
+  else:
+    s.mtype & "/" & s.stype
+
+proc `$`*(s: AcceptInfo): string =
+  ## Returns string representation of AcceptInfo object.
+  s.data.mapIt($it).join(",")
+
 proc mediaType*(s: AcceptMediaType, buffer: openarray[byte]): string =
   ## Returns media type/subtype as string.
   buffer.toString(s.mtype.s, s.mtype.e) & "/" &
     buffer.toString(s.stype.s, s.stype.e)
+
+proc mediaType*(s: AcceptMediaItem): string =
+  ## Returns media type/subtype as string.
+  s.mtype & "/" & s.stype
+
+proc parameters*(s: AcceptMediaItem): string =
+  ## Returns media type parameters as single string, if media type do not have
+  ## any parameters specified, empty string will be returned.
+  if len(s.params) > 0:
+    s.params.mapIt(it.name & "=" & it.value).join(";")
+  else:
+    ""
 
 iterator types*(header: AcceptHeader): string =
   ## Iterate over AcceptHeader media type/subtypes.
@@ -1202,34 +1233,161 @@ iterator types*(header: AcceptHeader, buffer: openarray[byte]): string =
     for item in header.mediaTypes:
       yield item.mediaType(buffer)
 
-iterator tuples*(header: AcceptHeader): tuple[mediaType: string,
-                                              param: string,
-                                              value: string] =
-  if header.success():
-    for item in header.mediaTypes:
-      let mtype = item.mediaType(header.data)
-      if len(item.params) == 0:
-        yield (mtype, "", "")
-      else:
-        for param in item.params:
-          let paramName = header.data.toString(param.name.s, param.name.e)
-          let paramValue = header.data.toString(param.value.s, param.value.e)
-          yield (mtype, paramName, paramValue)
+proc cmp*(x, y: AcceptMediaItem): int {.procvar.} =
+  if x.qvalue == y.qvalue: return 0
+  if x.qvalue < y.qvalue: return -1
+  return 1
 
-iterator tuples*(header: AcceptHeader,
-                 buffer: openarray[byte]): tuple[mediaType: string,
-                                                 param: string,
-                                                 value: string] =
+proc getQvalue*(value: string): Result[float, cstring] =
+  ## Parse quality value string and returns floating point number. If quality
+  ## value string format is not acceptable error will be returned.
+  ## https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.9
+  const
+    IncorrectQValue = cstring"Incorrect q-value"
+    IncorrectQValueLength = cstring"Incorrect q-value length"
+  case len(value)
+  of 0:
+    ok(1.0)
+  of 1:
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 2:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 3:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if value[2] == '0':
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 4:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 5:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]) and isDigit(value[4]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0') and (value[4] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  else:
+    err(IncorrectQValueLength)
+
+iterator mediaItems*(header: AcceptHeader): AcceptMediaItem =
+  ## Iterates over all media types and its parameters.
+  ##
+  ## If `q-value` has invalid format - `0.0` will be returned, if `q-value`
+  ## appears multiple times, last value will be used, if last value is invalid
+  ## `0.0` will be returned.
   if header.success():
     for item in header.mediaTypes:
-      let mtype = item.mediaType(buffer)
+      let mtype = header.data.toString(item.mtype.s, item.mtype.e)
+      let stype = header.data.toString(item.stype.s, item.stype.e)
       if len(item.params) == 0:
-        yield (mtype, "", "")
+        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: 1.0)
       else:
-        for param in item.params:
-          let paramName = buffer.toString(param.name.s, param.name.e)
-          let paramValue = buffer.toString(param.value.s, param.value.e)
-          yield (mtype, paramName, paramValue)
+        var qvalue: float = 1.0
+        let params =
+          block:
+            var res: seq[tuple[name: string, value: string]]
+            for param in item.params:
+              let name = header.data.toString(param.name.s, param.name.e)
+              let value = header.data.toString(param.value.s, param.value.e)
+              if name == "q":
+                qvalue =
+                  block:
+                    let res = getQvalue(value)
+                    if res.isErr():
+                      0.0
+                    else:
+                      res.get()
+              res.add((name, value))
+            res
+        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: qvalue,
+                              params: params)
+
+iterator mediaItems*(header: AcceptHeader,
+                     buffer: openarray[byte]): AcceptMediaItem =
+  ## Iterates over all media types and its parameters.
+  ##
+  ## If `q-value` has invalid format - `0.0` will be returned, if `q-value`
+  ## appears multiple times, last value will be used, if last value is invalid
+  ## `0.0` will be returned.
+  if header.success():
+    for item in header.mediaTypes:
+      let mtype = buffer.toString(item.mtype.s, item.mtype.e)
+      let stype = buffer.toString(item.stype.s, item.stype.e)
+      if len(item.params) == 0:
+        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: 1.0)
+      else:
+        var qvalue: float = 1.0
+        let params =
+          block:
+            var res: seq[tuple[name: string, value: string]]
+            for param in item.params:
+              let name = buffer.toString(param.name.s, param.name.e)
+              let value = buffer.toString(param.value.s, param.value.e)
+              if name == "q":
+                qvalue =
+                  block:
+                    let res = getQvalue(value)
+                    if res.isErr():
+                      0.0
+                    else:
+                      res.get()
+              res.add((name, value))
+            res
+        yield AcceptMediaItem(mtype: mtype, stype: stype, qvalue: qvalue,
+                              params: params)
+
+proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
+  var res: seq[AcceptMediaItem]
+  let header = parseAcceptHeader(value, false)
+  if header.success():
+    for item in header.mediaItems(value.toOpenArrayByte(0, len(value) - 1)):
+      res.add(item)
+    res.sort(cmp, SortOrder.Descending)
+    ok(AcceptInfo(data: res))
+  else:
+    err("Invalid Accept header format")
 
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.
@@ -1397,79 +1555,6 @@ proc checkHeaderValue*(value: string): bool =
       res = false
       break
   res
-
-proc getQvalue*(value: string): Result[float, cstring] =
-  ## Parse quality value string and returns floating point number. If quality
-  ## value string format is not acceptable error will be returned.
-  ## https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.9
-  const
-    IncorrectQValue = cstring"Incorrect q-value"
-    IncorrectQValueLength = cstring"Incorrect q-value length"
-  case len(value)
-  of 0:
-    ok(1.0)
-  of 1:
-    case value[0]
-    of '0':
-      ok(0.0)
-    of '1':
-      ok(1.0)
-    else:
-      err(IncorrectQValue)
-  of 2:
-    if value[1] != '.':
-      return err(IncorrectQValue)
-    case value[0]
-    of '0':
-      ok(0.0)
-    of '1':
-      ok(1.0)
-    else:
-      err(IncorrectQValue)
-  of 3:
-    if value[1] != '.':
-      return err(IncorrectQValue)
-    case value[0]
-    of '0':
-      if isDigit(value[2]):
-        return ok(parseFloat(value))
-      err(IncorrectQValue)
-    of '1':
-      if value[2] == '0':
-        return ok(1.0)
-      err(IncorrectQValue)
-    else:
-      err(IncorrectQValue)
-  of 4:
-    if value[1] != '.':
-      return err(IncorrectQValue)
-    case value[0]
-    of '0':
-      if isDigit(value[2]) and isDigit(value[3]):
-        return ok(parseFloat(value))
-      err(IncorrectQValue)
-    of '1':
-      if (value[2] == '0') and (value[3] == '0'):
-        return ok(1.0)
-      err(IncorrectQValue)
-    else:
-      err(IncorrectQValue)
-  of 5:
-    if value[1] != '.':
-      return err(IncorrectQValue)
-    case value[0]
-    of '0':
-      if isDigit(value[2]) and isDigit(value[3]) and isDigit(value[4]):
-        return ok(parseFloat(value))
-      err(IncorrectQValue)
-    of '1':
-      if (value[2] == '0') and (value[3] == '0') and (value[4] == '0'):
-        return ok(1.0)
-      err(IncorrectQValue)
-    else:
-      err(IncorrectQValue)
-  else:
-    err(IncorrectQValueLength)
 
 proc toInt*(code: HttpCode): int =
   ## Returns ``code`` as integer value.

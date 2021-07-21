@@ -507,7 +507,200 @@ suite "HTTP Procedures test suite":
         (true, "form-data", @[("a", "''''")])
 
   test "Accept header test vectors":
-    discard
+    # This is default accept header strings for different browsers
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation/List_of_default_Accept_values
+    const SuccessVectors = [
+      ("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("image/webp", "", 1.0),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("image/webp", "", 1.0),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("image/webp", "", 1.0),
+          ("image/apng", "", 1.0),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("image/jpeg, application/x-ms-application, image/gif, application/xaml+xml, image/pjpeg, application/x-ms-xbap, application/x-shockwave-flash, application/msword, */*",
+        @[
+          ("image/jpeg", "", 1.0),
+          ("application/x-ms-application", "", 1.0),
+          ("image/gif", "", 1.0),
+          ("application/xaml+xml", "", 1.0),
+          ("image/pjpeg", "", 1.0),
+          ("application/x-ms-xbap", "", 1.0),
+          ("application/x-shockwave-flash", "", 1.0),
+          ("application/msword", "", 1.0),
+          ("*/*", "", 1.0)
+        ]
+      ),
+      ("text/html, application/xhtml+xml, image/jxr, */*",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xhtml+xml", "", 1.0),
+          ("image/jxr", "", 1.0),
+          ("*/*", "", 1.0)
+        ]
+      ),
+      ("text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/webp, image/jpeg, image/gif, image/x-xbitmap, */*;q=0.1",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("application/xhtml+xml", "", 1.0),
+          ("image/png", "", 1.0),
+          ("image/webp", "", 1.0),
+          ("image/jpeg", "", 1.0),
+          ("image/gif", "", 1.0),
+          ("image/x-xbitmap", "", 1.0),
+          ("*/*", "q=0.1", 0.1)
+        ]
+      ),
+      ("image/webp,*/*",
+        @[
+          ("image/webp", "", 1.0),
+          ("*/*", "", 1.0)
+        ]
+      ),
+      ("*/*",
+        @[
+          ("*/*", "", 1.0)
+        ]
+      ),
+      ("image/png,image/*;q=0.8,*/*;q=0.5",
+        @[
+          ("image/png", "", 1.0),
+          ("image/*", "q=0.8", 0.8),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("image/webp,image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5",
+        @[
+          ("image/webp", "", 1.0),
+          ("image/png", "", 1.0),
+          ("image/svg+xml", "", 1.0),
+          ("image/*", "q=0.8", 0.8),
+          ("video/*", "q=0.8", 0.8),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5",
+        @[
+          ("image/png", "", 1.0),
+          ("image/svg+xml", "", 1.0),
+          ("image/*", "q=0.8", 0.8),
+          ("video/*", "q=0.8", 0.8),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        @[
+          ("image/avif", "", 1.0),
+          ("image/webp", "", 1.0),
+          ("image/apng", "", 1.0),
+          ("image/*", "", 1.0),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("image/png,image/svg+xml,image/*;q=0.8, */*;q=0.5",
+        @[
+          ("image/png", "", 1.0),
+          ("image/svg+xml", "", 1.0),
+          ("image/*", "q=0.8", 0.8),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5",
+        @[
+          ("video/webm", "", 1.0),
+          ("video/ogg", "", 1.0),
+          ("video/*", "q=0.9", 0.9),
+          ("application/ogg", "q=0.7", 0.7),
+          ("audio/*", "q=0.6", 0.6),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5",
+        @[
+          ("audio/webm", "", 1.0),
+          ("audio/ogg", "", 1.0),
+          ("audio/wav", "", 1.0),
+          ("audio/*", "q=0.9", 0.9),
+          ("application/ogg", "q=0.7", 0.7),
+          ("video/*", "q=0.6", 0.6),
+          ("*/*", "q=0.5", 0.5)
+        ]
+      ),
+      ("application/javascript, */*;q=0.8",
+        @[
+          ("application/javascript", "", 1.0),
+          ("*/*", "q=0.8", 0.8)
+        ]
+      ),
+      ("text/css,*/*;q=0.1",
+        @[
+          ("text/css", "", 1.0),
+          ("*/*", "q=0.1", 0.1)
+        ]
+      ),
+      ("text/html, application/xml;q=0.9, application/xhtml+xml, image/png, image/webp, image/jpeg, image/gif, image/x-xbitmap, */*;q=0.1",
+        @[
+          ("text/html", "", 1.0),
+          ("application/xml", "q=0.9", 0.9),
+          ("application/xhtml+xml", "", 1.0),
+          ("image/png", "", 1.0),
+          ("image/webp", "", 1.0),
+          ("image/jpeg", "", 1.0),
+          ("image/gif", "", 1.0),
+          ("image/x-xbitmap", "", 1.0),
+          ("*/*", "q=0.1", 0.1)
+        ]
+      )
+    ]
+
+    for vector in SuccessVectors:
+      let info = getAcceptInfo(vector[0])
+      check info.isOk() == true
+      var items = info.get().data
+      check len(items) == len(vector[1])
+      var expects = vector[1]
+      for item in items:
+        let tocheck = (item.mediaType(), item.parameters(), item.qvalue)
+        let index = expects.find(tocheck)
+        check index >= 0
+        expects.del(index)
 
   test "Q-value parser tests":
     const FailureVectors = [
