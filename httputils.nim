@@ -1203,13 +1203,32 @@ proc init*(t: typedesc[MediaType], s: string): MediaType =
   of 2:
     MediaType(media: parts[0], subtype: parts[1])
   else:
-    MediaType(media: "*", subytpe: "*")
+    MediaType(media: "*", subtype: "*")
 
 proc init*(t: typedesc[MediaType], media: string, subtype: string): MediaType =
   MediaType(media: media, subtype: subtype)
 
 proc `$`*(s: MediaType): string =
   s.media & "/" & s.subtype
+
+proc cmp*(x, y: MediaType): int =
+  if x.media != "*" and y.media != "*":
+    let res = cmpIgnoreCase(x.media, y.media)
+    if res == 0:
+      if x.subtype != "*" and y.subtype != "*":
+        cmpIgnoreCase(x.subtype, y.subtype)
+      else:
+        0
+    else:
+      res
+  else:
+    if x.subtype != "*" and y.subtype != "*":
+      cmpIgnoreCase(x.subtype, y.subtype)
+    else:
+      0
+
+proc `==`*(x, y: MediaType): bool =
+  cmp(x, y) == 0
 
 proc `$`*(s: AcceptMediaItem): string =
   ## Returns string representation of AcceptMediaItem object.

@@ -737,3 +737,21 @@ suite "HTTP Procedures test suite":
 
     for item in FailureVectors:
       check getQvalue(item).isErr() == true
+
+  test "Media-type comparison tests":
+    check:
+      cmp(MediaType.init("*/*"), MediaType.init("*/*")) == 0
+      cmp(MediaType.init("application/json"), MediaType.init("*/*")) == 0
+      cmp(MediaType.init("*/*"), MediaType.init("application/json")) == 0
+      cmp(MediaType.init("*/json"), MediaType.init("*/*")) == 0
+      cmp(MediaType.init("*/*"), MediaType.init("*/json")) == 0
+      cmp(MediaType.init("application/*"), MediaType.init("*/*")) == 0
+      cmp(MediaType.init("*/*"), MediaType.init("application/*")) == 0
+      cmp(MediaType.init("application/*"), MediaType.init("*/json")) == 0
+      cmp(MediaType.init("*/json"), MediaType.init("application/*")) == 0
+      cmp(MediaType.init("application/json"),
+          MediaType.init("application/cbor")) != 0
+      cmp(MediaType.init("*/json"),
+          MediaType.init("application/cbor")) != 0
+      cmp(MediaType.init("application/cbor"),
+          MediaType.init("*/json")) != 0
