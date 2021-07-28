@@ -6,8 +6,9 @@
 #              Licensed under either of
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
-
-import times, strutils
+import std/[times, strutils, algorithm, sequtils]
+import stew/results
+export results
 
 const
   ALPHA* = {'a'..'z', 'A'..'Z'}
@@ -31,6 +32,8 @@ const
   HEADERNAME* = ALPHANUM + TOKENURI + TOKENONLY + DOT
 
   BSLASH = {'\\'}
+  FSLASH = {'/'}
+  COMMA = {','}
   DQUOTE = {'"'}
   EQUALS = {'='}
   SEMCOL = {';'}
@@ -44,6 +47,7 @@ const
   LTOKEN = CHAR - CTL - SEPARATORS
   LSEP = SEPARATORS - BSLASH - DQUOTE - EQUALS - SEMCOL -
          SPACEO - HOTAB
+  LSEP2 = LSEP - COMMA - FSLASH
 
   # Legend:
   # [0x81, 0x8D] - markers
@@ -147,6 +151,31 @@ const
     0xCB, 0xCB, 0xCB, 0xCB, 0xCB, 0xCB, 0x8C, 0xCB, 0xCB, # sB: finish double quote
     0xCC, 0x83, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0x0C, 0x0C, # sC: semicolon and spaces
     0xCD, 0x83, 0xCD, 0xCD, 0xCD, 0xCD, 0xCD, 0x0D, 0x0D, # sD: semicolon and spaces
+  ]
+
+  #     *  LTOKN  LSEP2      /      \      ,      ;      "      =  SPACE
+  acceptSM = [
+    0xE00, 0x801, 0xE00, 0xE00, 0xE00, 0x000, 0xE00, 0xE00, 0xE00, 0xE00, # s00: start of media-type
+    0xE01, 0x001, 0xE01, 0x802, 0xE01, 0xE01, 0xE01, 0xE01, 0xE01, 0xE01, # s01: media-type and forward slash
+    0xE02, 0x803, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, # s02: forward slash
+    0xE03, 0x003, 0xE03, 0xE03, 0xE03, 0x805, 0x806, 0xE03, 0xE03, 0x804, # s03: media-subtype
+    0xE04, 0xE04, 0xE04, 0xE04, 0xE04, 0x805, 0x806, 0xE04, 0xE04, 0x004, # s04: spaces
+    0xE05, 0x801, 0xE05, 0xE05, 0xE05, 0xE05, 0xE05, 0xE05, 0xE05, 0x005, # s05: comma and spaces
+    0xE06, 0x807, 0xE06, 0xE06, 0xE06, 0xE06, 0xE06, 0xE06, 0xE06, 0x006, # s06: semicolon and spaces
+    0xE07, 0x007, 0xE07, 0xE07, 0xE07, 0xE07, 0xE07, 0xE07, 0x808, 0xE07, # s07: param-name
+    0xE08, 0x80A, 0xE08, 0xE08, 0xE08, 0x809, 0x80D, 0x80E, 0xE08, 0xE08, # s08: =
+    0xE09, 0x801, 0xE09, 0xE09, 0xE09, 0xE09, 0xE09, 0xE09, 0xE09, 0x009, # s09: comma and spaces after <param_name>=,
+    0xE0A, 0x00A, 0xE0A, 0xE0A, 0xE0A, 0x80C, 0x80B, 0xE0A, 0xE0A, 0xE0A, # s0A: param value as token
+    0xE0B, 0x807, 0xE0B, 0xE0B, 0xE0B, 0xE0B, 0xE0B, 0xE0B, 0xE0B, 0x00B, # s0B: spaces after ;
+    0xE0C, 0x801, 0xE0C, 0xE0C, 0xE0C, 0xE0C, 0xE0C, 0xE0C, 0xE0C, 0x00C, # s0C: spaces after ,
+    0xE0D, 0x807, 0xE0D, 0xE0D, 0xE0D, 0xE0D, 0xE0D, 0xE0D, 0xE0D, 0x00D, # s0D: spaces after =;
+    0xE0E, 0x80F, 0x80F, 0x80F, 0x810, 0x80F, 0x80F, 0x812, 0x80F, 0x80F, # s0E: starting double quote
+    0xE0F, 0x00F, 0x00F, 0x00F, 0x810, 0x00F, 0x00F, 0x812, 0x00F, 0x00F, # s0F: quoted param-value
+    0xE10, 0x00F, 0x00F, 0x00F, 0x00F, 0x00F, 0x00F, 0x811, 0x00F, 0x00F, # s10: backslash
+    0xE11, 0x00F, 0x00F, 0x00F, 0x810, 0x00F, 0x00F, 0x812, 0x00F, 0x00F, # s11: double quote after backslash
+    0xE12, 0xE12, 0xE12, 0xE12, 0xE12, 0x814, 0x813, 0xE12, 0xE12, 0xE12, # s12: finish double quote
+    0xE13, 0x807, 0xE13, 0xE13, 0xE13, 0xE13, 0xE13, 0xE13, 0xE13, 0x013, # s13: [";] and spaces
+    0xE14, 0x801, 0xE14, 0xE14, 0xE14, 0xE14, 0xE14, 0xE14, 0xE14, 0x014  # s14: [",] and spaces
   ]
 
 type
@@ -272,64 +301,114 @@ type
     disptype: HttpHeaderPart
     flds: seq[HttpHeader]
 
+  AcceptMediaType* = object
+    mtype*: HttpHeaderPart
+    stype*: HttpHeaderPart
+    params*: seq[HttpHeader]
+
+  AcceptHeader* = object
+    data: seq[byte]
+    state*: int
+    status*: HttpStatus
+    mediaTypes*: seq[AcceptMediaType]
+
+  MediaType* = object
+    media*: string
+    subtype*: string
+
+  AcceptMediaItem* = object
+    mediaType*: MediaType
+    qvalue*: float
+    params*: seq[tuple[name: string, value: string]]
+
+  AcceptInfo* = object
+    data*: seq[AcceptMediaItem]
+
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
   BChar* = byte | char
 
 template processHeaders(sm: untyped, state: var int, ch: char): int =
-  var code = 0
-  case ch
-  of ALPHA:
-    code = 1
-  of NUM:
-    code = 2
-  of TOKENURI:
-    code = 3
-  of TOKENONLY:
-    code = 4
-  of URIONLY:
-    code = 5
-  of CR:
-    code = 6
-  of LF:
-    code = 7
-  of COLON:
-    code = 8
-  of SLASH:
-    code = 9
-  of DOT:
-    code = 10
-  of SPACE:
-    code = 11
-  else:
-    code = 0
+  let code =
+    case ch
+    of ALPHA:
+      1
+    of NUM:
+      2
+    of TOKENURI:
+      3
+    of TOKENONLY:
+      4
+    of URIONLY:
+      5
+    of CR:
+      6
+    of LF:
+      7
+    of COLON:
+      8
+    of SLASH:
+      9
+    of DOT:
+      10
+    of SPACE:
+      11
+    else:
+      0
   let newstate = sm[(state shl 4) + code]
   state = newstate and 0x0F
   newstate
 
 template processDisposition(sm: untyped, state: var int, ch: char): int =
-  var code = 0
-  case ch
-  of LTOKEN:
-    code = 1
-  of LSEP:
-    code = 2
-  of BSLASH:
-    code = 3
-  of DQUOTE:
-    code = 4
-  of EQUALS:
-    code = 5
-  of SEMCOL:
-    code = 6
-  of SPACEO:
-    code = 7
-  of HOTAB:
-    code = 8
-  else:
-    code = 0
+  let code =
+    case ch
+    of LTOKEN:
+      1
+    of LSEP:
+      2
+    of BSLASH:
+      3
+    of DQUOTE:
+      4
+    of EQUALS:
+      5
+    of SEMCOL:
+      6
+    of SPACEO:
+      7
+    of HOTAB:
+      8
+    else:
+      0
   let newstate = sm[(state shl 3) + state + code]
   state = newstate and 0x0F
+  newstate
+
+template processAcceptHeader(sm: untyped, state: var int, ch: char): int =
+  let code =
+    case ch
+    of LTOKEN:
+      1
+    of LSEP2:
+      2
+    of FSLASH:
+      3
+    of BSLASH:
+      4
+    of COMMA:
+      5
+    of SEMCOL:
+      6
+    of DQUOTE:
+      7
+    of EQUALS:
+      8
+    of SPACE:
+      9
+    else:
+      0
+  let newstate = sm[(state shl 3) + (state shl 1) + code]
+  state = newstate and 0xFF
   newstate
 
 proc processMethod[T: Bchar](data: openarray[T], s, e: int): HttpMethod =
@@ -842,11 +921,7 @@ proc parseDisposition*[T: BChar](data: openarray[T],
   if res.status == HttpStatus.Success:
     res
   else:
-    ContentDispositionHeader(
-      status: HttpStatus.Failure,
-      disptype: HttpHeaderPart(),
-      flds: newSeq[HttpHeader]()
-    )
+    ContentDispositionHeader(status: HttpStatus.Failure)
 
 proc parseDisposition*[T: BChar](data: seq[T]): ContentDispositionHeader =
   ## Parse sequence of characters or bytes of HTTP ``Content-Disposition``
@@ -863,11 +938,143 @@ proc parseDisposition*[T: BChar](data: seq[T]): ContentDispositionHeader =
   shallowCopy(res.data, cast[seq[byte]](data))
   res
 
-template success*(reqresp: HttpReqRespHeader | ContentDispositionHeader): bool =
+proc parseAcceptHeader*[T: BChar](data: openarray[T],
+                                  makeCopy: bool): AcceptHeader =
+  var
+    index = 0
+    state = 0
+    start = -1
+    finish = 0
+    hdr: HttpHeader
+    mtype: AcceptMediaType
+
+  var res = AcceptHeader(status: HttpStatus.Failure)
+
+  if len(data) == 0:
+    return res
+
+  if makeCopy:
+    # Make copy of ``data`` sequence in our result object.
+    res.data = newSeq[byte](len(data))
+    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+
+  while index < len(data):
+    let ps = acceptSM.processAcceptHeader(state, char(data[index]))
+    res.state = ps
+    case ps
+    of 0x801:
+      mtype = AcceptMediaType()
+      start = index
+    of 0x802:
+      if start == -1:
+        mtype.mtype = HttpHeaderPart(s: -1, e: -1)
+        break
+      finish = index - 1
+      mtype.mtype = HttpHeaderPart(s: start, e: finish)
+      start = -1
+    of 0x803:
+      start = index
+    of 0x804, 0x805, 0x806:
+      if start == -1:
+        mtype.stype = HttpHeaderPart(s: -1, e: -1)
+        break
+      finish = index - 1
+      mtype.stype = HttpHeaderPart(s: start, e: finish)
+      start = -1
+      if ps == 0x805:
+        res.mediaTypes.add(mtype)
+    of 0x807:
+      hdr = HttpHeader()
+      start = index
+    of 0x808:
+      if start == -1:
+        hdr.name = HttpHeaderPart(s: -1, e: -1)
+        break
+      finish = index - 1
+      hdr.name = HttpHeaderPart(s: start, e: finish)
+      start = -1
+    of 0x809:
+      discard
+    of 0x80A:
+      start = index
+    of 0x80B, 0x80C:
+      if start == -1:
+        hdr.value = HttpHeaderPart(s: -1, e: -1)
+        break
+      finish = index - 1
+      hdr.value = HttpHeaderPart(s: start, e: finish)
+      mtype.params.add(hdr)
+      start = -1
+      if ps == 0x80C:
+        res.mediaTypes.add(mtype)
+    of 0x80D:
+      hdr.value = HttpHeaderPart(s: index, e: index - 1)
+      mtype.params.add(hdr)
+      start = -1
+    of 0x80E:
+      discard
+    of 0x80F:
+      start = index
+    of 0x810, 0x811:
+      discard
+    of 0x812:
+      if start == -1:
+        hdr.value = HttpHeaderPart(s: -1, e: -1)
+        break
+      finish = index - 1
+      hdr.value = HttpHeaderPart(s: start, e: finish)
+      mtype.params.add(hdr)
+      start = -1
+    of 0x814:
+      res.mediaTypes.add(mtype)
+    of 0x000 .. 0x014:
+      discard
+    else:
+      break
+    inc(index)
+
+  res.status =
+    case res.state
+    of 0x803, 0x003:
+      if start == -1:
+        HttpStatus.Failure
+      else:
+        finish = index - 1
+        mtype.stype = HttpHeaderPart(s: start, e: finish)
+        res.mediaTypes.add(mtype)
+        HttpStatus.Success
+    of 0x808, 0x008:
+      hdr.value = HttpHeaderPart(s: index, e: index - 1)
+      mtype.params.add(hdr)
+      res.mediaTypes.add(mtype)
+      HttpStatus.Success
+    of 0x80A, 0x00A:
+      if start == -1:
+        HttpStatus.Failure
+      else:
+        finish = index - 1
+        hdr.value = HttpHeaderPart(s: start, e: finish)
+        mtype.params.add(hdr)
+        res.mediaTypes.add(mtype)
+        HttpStatus.Success
+    of 0x812:
+      res.mediaTypes.add(mtype)
+      HttpStatus.Success
+    else:
+      HttpStatus.Failure
+
+  if res.status == HttpStatus.Success:
+    res
+  else:
+    AcceptHeader(status: HttpStatus.Failure)
+
+template success*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
+                  AcceptHeader): bool =
   ## Returns ``true`` is ``reqresp`` was successfully parsed.
   reqresp.status == HttpStatus.Success
 
-template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader): bool =
+template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
+                 AcceptHeader): bool =
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
@@ -987,6 +1194,241 @@ iterator fields*(header: ContentDispositionHeader,
         else:
           buffer.toString(item.value.s, item.value.e)
       yield(name, value.replace("\\\"", "\""))
+
+proc init*(t: typedesc[MediaType], s: string): MediaType =
+  let parts = s.split("/", 1)
+  case len(parts)
+  of 1:
+    MediaType(media: parts[0], subtype: "*")
+  of 2:
+    MediaType(media: parts[0], subtype: parts[1])
+  else:
+    MediaType(media: "*", subtype: "*")
+
+proc init*(t: typedesc[MediaType], media: string, subtype: string): MediaType =
+  MediaType(media: media, subtype: subtype)
+
+proc `$`*(s: MediaType): string =
+  s.media & "/" & s.subtype
+
+proc cmp*(x, y: MediaType): int =
+  if x.media != "*" and y.media != "*":
+    let res = cmpIgnoreCase(x.media, y.media)
+    if res == 0:
+      if x.subtype != "*" and y.subtype != "*":
+        cmpIgnoreCase(x.subtype, y.subtype)
+      else:
+        0
+    else:
+      res
+  else:
+    if x.subtype != "*" and y.subtype != "*":
+      cmpIgnoreCase(x.subtype, y.subtype)
+    else:
+      0
+
+proc `==`*(x, y: MediaType): bool =
+  cmp(x, y) == 0
+
+proc `$`*(s: AcceptMediaItem): string =
+  ## Returns string representation of AcceptMediaItem object.
+  if len(s.params) > 0:
+    let params = s.params.mapIt(it.name & "=" & it.value).join(";")
+    $s.mediaType & ";" & params
+  else:
+    $s.mediaType
+
+proc `$`*(s: AcceptInfo): string =
+  ## Returns string representation of AcceptInfo object.
+  s.data.mapIt($it).join(",")
+
+proc mediaType*(s: AcceptMediaType, buffer: openarray[byte]): string =
+  ## Returns media type/subtype as string.
+  buffer.toString(s.mtype.s, s.mtype.e) & "/" &
+    buffer.toString(s.stype.s, s.stype.e)
+
+proc parameters*(s: AcceptMediaItem): string =
+  ## Returns media type parameters as single string, if media type do not have
+  ## any parameters specified, empty string will be returned.
+  if len(s.params) > 0:
+    s.params.mapIt(it.name & "=" & it.value).join(";")
+  else:
+    ""
+
+iterator types*(header: AcceptHeader): string =
+  ## Iterate over AcceptHeader media type/subtypes.
+  if header.success():
+    for item in header.mediaTypes:
+      yield item.mediaType(header.data)
+
+iterator types*(header: AcceptHeader, buffer: openarray[byte]): string =
+  ## Iterate over AcceptHeader media type/subtypes.
+  if header.success():
+    for item in header.mediaTypes:
+      yield item.mediaType(buffer)
+
+proc cmp*(x, y: AcceptMediaItem): int {.procvar.} =
+  if x.qvalue == y.qvalue: return 0
+  if x.qvalue < y.qvalue: return -1
+  return 1
+
+proc getQvalue*(value: string): Result[float, cstring] =
+  ## Parse quality value string and returns floating point number. If quality
+  ## value string format is not acceptable error will be returned.
+  ## https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.9
+  const
+    IncorrectQValue = cstring"Incorrect q-value"
+    IncorrectQValueLength = cstring"Incorrect q-value length"
+  case len(value)
+  of 0:
+    ok(1.0)
+  of 1:
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 2:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      ok(0.0)
+    of '1':
+      ok(1.0)
+    else:
+      err(IncorrectQValue)
+  of 3:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if value[2] == '0':
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 4:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  of 5:
+    if value[1] != '.':
+      return err(IncorrectQValue)
+    case value[0]
+    of '0':
+      if isDigit(value[2]) and isDigit(value[3]) and isDigit(value[4]):
+        return ok(parseFloat(value))
+      err(IncorrectQValue)
+    of '1':
+      if (value[2] == '0') and (value[3] == '0') and (value[4] == '0'):
+        return ok(1.0)
+      err(IncorrectQValue)
+    else:
+      err(IncorrectQValue)
+  else:
+    err(IncorrectQValueLength)
+
+iterator mediaItems*(header: AcceptHeader): AcceptMediaItem =
+  ## Iterates over all media types and its parameters.
+  ##
+  ## If `q-value` has invalid format - `0.0` will be returned, if `q-value`
+  ## appears multiple times, last value will be used, if last value is invalid
+  ## `0.0` will be returned.
+  if header.success():
+    for item in header.mediaTypes:
+      let mtype = header.data.toString(item.mtype.s, item.mtype.e)
+      let stype = header.data.toString(item.stype.s, item.stype.e)
+      if len(item.params) == 0:
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: 1.0)
+      else:
+        var qvalue: float = 1.0
+        let params =
+          block:
+            var res: seq[tuple[name: string, value: string]]
+            for param in item.params:
+              let name = header.data.toString(param.name.s, param.name.e)
+              let value = header.data.toString(param.value.s, param.value.e)
+              if name == "q":
+                qvalue =
+                  block:
+                    let res = getQvalue(value)
+                    if res.isErr():
+                      0.0
+                    else:
+                      res.get()
+              res.add((name, value))
+            res
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: qvalue, params: params)
+
+iterator mediaItems*(header: AcceptHeader,
+                     buffer: openarray[byte]): AcceptMediaItem =
+  ## Iterates over all media types and its parameters.
+  ##
+  ## If `q-value` has invalid format - `0.0` will be returned, if `q-value`
+  ## appears multiple times, last value will be used, if last value is invalid
+  ## `0.0` will be returned.
+  if header.success():
+    for item in header.mediaTypes:
+      let mtype = buffer.toString(item.mtype.s, item.mtype.e)
+      let stype = buffer.toString(item.stype.s, item.stype.e)
+      if len(item.params) == 0:
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: 1.0)
+      else:
+        var qvalue: float = 1.0
+        let params =
+          block:
+            var res: seq[tuple[name: string, value: string]]
+            for param in item.params:
+              let name = buffer.toString(param.name.s, param.name.e)
+              let value = buffer.toString(param.value.s, param.value.e)
+              if name == "q":
+                qvalue =
+                  block:
+                    let res = getQvalue(value)
+                    if res.isErr():
+                      0.0
+                    else:
+                      res.get()
+              res.add((name, value))
+            res
+        yield AcceptMediaItem(mediaType: MediaType.init(mtype, stype),
+                              qvalue: qvalue, params: params)
+
+proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
+  var res: seq[AcceptMediaItem]
+  var toparse =
+    if len(value) == 0:
+      "*/*"
+    else:
+      value
+  let header = parseAcceptHeader(toparse, false)
+  if header.success():
+    for item in header.mediaItems(toparse.toOpenArrayByte(0, len(toparse) - 1)):
+      res.add(item)
+    res.sort(cmp, SortOrder.Descending)
+    ok(AcceptInfo(data: res))
+  else:
+    err("Invalid Accept header format")
 
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.
