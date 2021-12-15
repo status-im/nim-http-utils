@@ -10,6 +10,6 @@ requires "nim >= 0.17.3",
          "stew"
 
 task test, "run tests":
-  exec "nim c -r -d:useSysAssert -d:useGcAssert tests/tvectors"
+  exec "nim c -r -d:useSysAssert -d:useGcAssert --styleCheck:usages --styleCheck:error tests/tvectors"
   exec "nim c -r tests/tvectors"
   exec "nim c -r -d:release --threads:on tests/tvectors"

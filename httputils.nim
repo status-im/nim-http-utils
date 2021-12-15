@@ -411,7 +411,7 @@ template processAcceptHeader(sm: untyped, state: var int, ch: char): int =
   state = newstate and 0xFF
   newstate
 
-proc processMethod[T: Bchar](data: openarray[T], s, e: int): HttpMethod =
+proc processMethod[T: BChar](data: openArray[T], s, e: int): HttpMethod =
   let length = e - s + 1
   case char(data[s])
   of 'G':
@@ -463,7 +463,7 @@ proc processMethod[T: Bchar](data: openarray[T], s, e: int): HttpMethod =
 
   return HttpMethod.MethodError
 
-proc processVersion[T: BChar](data: openarray[T], s, e: int): HttpVersion =
+proc processVersion[T: BChar](data: openArray[T], s, e: int): HttpVersion =
   let length = e - s + 1
   if length == 8:
     if char(data[s]) == 'H' and char(data[s + 1]) == 'T' and
@@ -482,7 +482,7 @@ proc processVersion[T: BChar](data: openarray[T], s, e: int): HttpVersion =
           return HttpVersion20
   return HttpVersionError
 
-proc processCode[T: BChar](data: openarray[T], s, e: int): int =
+proc processCode[T: BChar](data: openArray[T], s, e: int): int =
   var res = -1
   let length = e - s + 1
   if length == 3:
@@ -491,7 +491,7 @@ proc processCode[T: BChar](data: openarray[T], s, e: int): int =
            ord(data[s + 2]) - ord('0')
   res
 
-proc parseRequest*[T: BChar](data: openarray[T],
+proc parseRequest*[T: BChar](data: openArray[T],
                              makeCopy: bool): HttpRequestHeader =
   ## Parse sequence of characters or bytes ``data`` as HTTP request header.
   ##
@@ -607,7 +607,7 @@ proc parseRequest*[T: BChar](data: seq[T]): HttpRequestHeader =
   shallowCopy(res.data, cast[seq[byte]](data))
   res
 
-proc parseHeaders*[T: BChar](data: openarray[T],
+proc parseHeaders*[T: BChar](data: openArray[T],
                              makeCopy: bool): HttpHeadersList =
   ## Parse sequence of characters or bytes ``data`` as HTTP headers list.
   ##
@@ -690,7 +690,7 @@ proc parseHeaders*[T: BChar](data: seq[T]): HttpHeadersList =
   shallowCopy(res.data, cast[seq[byte]](data))
   res
 
-proc parseResponse*[T: BChar](data: openarray[T],
+proc parseResponse*[T: BChar](data: openArray[T],
                                   makeCopy: bool): HttpResponseHeader =
   ## Parse sequence of characters or bytes as HTTP response header.
   ##
@@ -808,7 +808,7 @@ proc parseResponse*[T: BChar](data: seq[T]): HttpResponseHeader =
   shallowCopy(res.data, cast[seq[byte]](data))
   res
 
-proc parseDisposition*[T: BChar](data: openarray[T],
+proc parseDisposition*[T: BChar](data: openArray[T],
                                  makeCopy: bool): ContentDispositionHeader =
   ## Parse sequence of characters or bytes of HTTP ``Content-Disposition``
   ## header according to RFC6266.
@@ -938,7 +938,7 @@ proc parseDisposition*[T: BChar](data: seq[T]): ContentDispositionHeader =
   shallowCopy(res.data, cast[seq[byte]](data))
   res
 
-proc parseAcceptHeader*[T: BChar](data: openarray[T],
+proc parseAcceptHeader*[T: BChar](data: openArray[T],
                                   makeCopy: bool): AcceptHeader =
   var
     index = 0
@@ -1078,7 +1078,7 @@ template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
-proc compare(data: openarray[byte], header: HttpHeader, key: string): int =
+proc compare(data: openArray[byte], header: HttpHeader, key: string): int =
   ## Case-insensitive comparison function.
   let length = header.name.e - header.name.s + 1
   var res = length - len(key)
@@ -1099,7 +1099,7 @@ proc contains*(reqresp: HttpReqRespHeader, header: string): bool =
         return true
   return false
 
-proc toString(data: openarray[byte], start, stop: int): string =
+proc toString(data: openArray[byte], start, stop: int): string =
   ## Slice a raw data blob into a string
   ## This is an inclusive slice
   ## The output string is null-terminated for raw C-compat
@@ -1146,7 +1146,7 @@ iterator headers*(reqresp: HttpReqRespHeader,
           yield (name, value)
 
 iterator headers*(reqresp: HttpReqRespHeader,
-                  buffer: openarray[byte],
+                  buffer: openArray[byte],
                   key: string = ""): tuple[name: string, value: string] =
   ## Iterates over all or specific headers  in ``reqresp`` headers object.
   ## You can specify ``key` string to iterate only over headers which has key
@@ -1184,7 +1184,7 @@ iterator fields*(header: ContentDispositionHeader): tuple[name: string,
       yield(name, value.replace("\\\"", "\""))
 
 iterator fields*(header: ContentDispositionHeader,
-                 buffer: openarray[byte]): tuple[name: string, value: string] =
+                 buffer: openArray[byte]): tuple[name: string, value: string] =
   if header.success():
     for item in header.flds:
       var name = buffer.toString(item.name.s, item.name.e)
@@ -1242,7 +1242,7 @@ proc `$`*(s: AcceptInfo): string =
   ## Returns string representation of AcceptInfo object.
   s.data.mapIt($it).join(",")
 
-proc mediaType*(s: AcceptMediaType, buffer: openarray[byte]): string =
+proc mediaType*(s: AcceptMediaType, buffer: openArray[byte]): string =
   ## Returns media type/subtype as string.
   buffer.toString(s.mtype.s, s.mtype.e) & "/" &
     buffer.toString(s.stype.s, s.stype.e)
@@ -1261,7 +1261,7 @@ iterator types*(header: AcceptHeader): string =
     for item in header.mediaTypes:
       yield item.mediaType(header.data)
 
-iterator types*(header: AcceptHeader, buffer: openarray[byte]): string =
+iterator types*(header: AcceptHeader, buffer: openArray[byte]): string =
   ## Iterate over AcceptHeader media type/subtypes.
   if header.success():
     for item in header.mediaTypes:
@@ -1380,7 +1380,7 @@ iterator mediaItems*(header: AcceptHeader): AcceptMediaItem =
                               qvalue: qvalue, params: params)
 
 iterator mediaItems*(header: AcceptHeader,
-                     buffer: openarray[byte]): AcceptMediaItem =
+                     buffer: openArray[byte]): AcceptMediaItem =
   ## Iterates over all media types and its parameters.
   ##
   ## If `q-value` has invalid format - `0.0` will be returned, if `q-value`
@@ -1440,7 +1440,7 @@ proc uri*(request: HttpRequestHeader): string =
   else:
     ""
 
-proc uri*(request: HttpRequestHeader, buffer: openarray[byte]): string =
+proc uri*(request: HttpRequestHeader, buffer: openArray[byte]): string =
   ## Returns HTTP request URI as string from ``request``.
   if request.success():
     if request.url.s == -1 and request.url.e == -1:
@@ -1460,7 +1460,7 @@ proc reason*(response: HttpResponseHeader): string =
   else:
     ""
 
-proc reason*(response: HttpResponseHeader, buffer: openarray[byte]): string =
+proc reason*(response: HttpResponseHeader, buffer: openArray[byte]): string =
   ## Returns HTTP reason string from ``response``.
   if response.success():
     if response.rsn.s == -1 and response.rsn.e == -1:
@@ -1481,7 +1481,7 @@ proc dispositionType*(header: ContentDispositionHeader): string =
     ""
 
 proc dispositionType*(header: ContentDispositionHeader,
-               buffer: openarray[byte]): string =
+               buffer: openArray[byte]): string =
   ## Returns disposition type of ``Content-Disposition`` header.
   if header.success():
     if header.disptype.s == -1 and header.disptype.e == -1:
