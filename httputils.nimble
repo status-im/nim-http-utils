@@ -7,7 +7,8 @@ skipDirs      = @["tests", "Nim"]
 
 ### Dependencies
 requires "nim >= 0.17.3",
-         "stew"
+         "stew",
+         "unittest2"
 
 task test, "run tests":
   let envNimflags = getEnv("NIMFLAGS")
