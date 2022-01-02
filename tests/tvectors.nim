@@ -469,7 +469,7 @@ suite "HTTP Procedures test suite":
       len(list) == len(ResponseHeaderTexts)
 
   test "Content-Disposition test vectors":
-    proc runDispTest(test: string): auto =
+    proc runDispTest(test: string): (bool, string, seq[(string, string)]) =
       let cdisp = parseDisposition(test, true)
       var fields: seq[tuple[k: string, v: string]]
       if cdisp.success():
