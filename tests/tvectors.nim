@@ -1,5 +1,6 @@
-import std/[unittest, strutils]
-import ../httputils
+import std/strutils,
+  unittest2,
+  ../httputils
 
 # Some tests are borrowed from
 # https://github.com/nodejs/http-parser/blob/master/test.c
@@ -469,7 +470,9 @@ suite "HTTP Procedures test suite":
       len(list) == len(ResponseHeaderTexts)
 
   test "Content-Disposition test vectors":
-    proc runDispTest(test: string): auto =
+    type TestOutput = (bool, string, seq[(string, string)])
+
+    proc runDispTest(test: string): TestOutput =
       let cdisp = parseDisposition(test, true)
       var fields: seq[tuple[k: string, v: string]]
       if cdisp.success():
@@ -480,10 +483,10 @@ suite "HTTP Procedures test suite":
         (false, "", fields)
 
     check:
-      runDispTest("") == (false, "", @[])
-      runDispTest("a") == (true, "a", @[])
-      runDispTest("aa") == (true, "aa", @[])
-      runDispTest("form-data") == (true, "form-data", @[])
+      runDispTest("") == (false, "", @[]).TestOutput
+      runDispTest("a") == (true, "a", @[]).TestOutput
+      runDispTest("aa") == (true, "aa", @[]).TestOutput
+      runDispTest("form-data") == (true, "form-data", @[]).TestOutput
       runDispTest("form-data; name=token5; value=token6") ==
         (true, "form-data", @[("name", "token5"), ("value", "token6")])
       runDispTest("form-data; name=\"quoted1\"; filename=\"quoted2.txt\"") ==
@@ -492,8 +495,8 @@ suite "HTTP Procedures test suite":
         (true, "form-data", @[("filename", "quoted.txt"), ("name", "noquote")])
       runDispTest("form-data; filename=\"123\\\"\\\"\\\"456\"") ==
         (true, "form-data", @[("filename", "123\"\"\"456")])
-      runDispTest("form-data; filename=123\"") == (false, "", @[])
-      runDispTest("form-data; filename=123;") == (false, "", @[])
+      runDispTest("form-data; filename=123\"") == (false, "", @[]).TestOutput
+      runDispTest("form-data; filename=123;") == (false, "", @[]).TestOutput
       runDispTest("form-data; filename=123") ==
         (true, "form-data", @[("filename", "123")])
       runDispTest("form-data; filename=\"\"") ==
