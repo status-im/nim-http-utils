@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "packages": {
+    "unittest2": {
+      "version": "0.0.3",
+      "vcsRevision": "24eb5e829ed07e71e3a5d09786d5f80aa988874f",
+      "url": "https://github.com/status-im/nim-unittest2.git",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "0140709df36bca378cfa8678e04082f9a1fccabf"
+      }
+    },
+    "stew": {
+      "version": "0.1.0",
+      "vcsRevision": "cdb1f213d073fd2ecbdaf35a866417657da9294c",
+      "url": "https://github.com/status-im/nim-stew",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "3dd9e4ec78d906b59b6f9bcf74f5f8fa6b5c24fe"
+      }
+    }
+  }
+}
