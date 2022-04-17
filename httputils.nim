@@ -225,7 +225,7 @@ type
     Http500 = "500 Internal Server Error",
     Http501 = "501 Not Implemented",
     Http502 = "502 Bad Gateway",
-    Http503 = "503 Service Unavailable",
+    Http503 = "503 Service Unavailable at the moment",
     Http504 = "504 Gateway Timeout",
     Http505 = "505 HTTP Version Not Supported"
 
