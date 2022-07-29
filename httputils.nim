@@ -593,7 +593,7 @@ proc parseRequest*[T: BChar](data: openArray[T],
 
   res
 
-proc parseRequest*[T: BChar](data: seq[T]): HttpRequestHeader =
+proc parseRequest*[T: BChar](data: sink seq[T]): HttpRequestHeader =
   ## Parse sequence of characters or bytes as HTTP request header.
   ##
   ## Note: to prevent unnecessary allocations source array ``data`` will be
@@ -604,7 +604,10 @@ proc parseRequest*[T: BChar](data: seq[T]): HttpRequestHeader =
   ##
   ## Returns `HttpRequestHeader` instance.
   var res = parseRequest(data, false)
-  shallowCopy(res.data, cast[seq[byte]](data))
+  when declared(shallowCopy):
+    shallowCopy(res.data, cast[seq[byte]](data))
+  else:
+    res.data = cast[seq[byte]](data)
   res
 
 proc parseHeaders*[T: BChar](data: openArray[T],
@@ -676,7 +679,7 @@ proc parseHeaders*[T: BChar](data: openArray[T],
     inc(index)
   res
 
-proc parseHeaders*[T: BChar](data: seq[T]): HttpHeadersList =
+proc parseHeaders*[T: BChar](data: sink seq[T]): HttpHeadersList =
   ## Parse sequence of characters or bytes as HTTP headers list.
   ##
   ## Note: to prevent unnecessary allocations source array ``data`` will be
@@ -687,7 +690,10 @@ proc parseHeaders*[T: BChar](data: seq[T]): HttpHeadersList =
   ##
   ## Returns `HttpHeadersList` instance.
   var res = parseHeaders(data, false)
-  shallowCopy(res.data, cast[seq[byte]](data))
+  when declared(shallowCopy):
+    shallowCopy(res.data, cast[seq[byte]](data))
+  else:
+    res.data = cast[seq[byte]](data)
   res
 
 proc parseResponse*[T: BChar](data: openArray[T],
@@ -794,7 +800,7 @@ proc parseResponse*[T: BChar](data: openArray[T],
     inc(index)
   res
 
-proc parseResponse*[T: BChar](data: seq[T]): HttpResponseHeader =
+proc parseResponse*[T: BChar](data: sink seq[T]): HttpResponseHeader =
   ## Parse sequence of characters or bytes as HTTP response header.
   ##
   ## Note: to prevent unnecessary allocations source array ``data`` will be
@@ -805,7 +811,10 @@ proc parseResponse*[T: BChar](data: seq[T]): HttpResponseHeader =
   ##
   ## Returns `HttpResponseHeader` instance.
   var res = parseResponse(data, false)
-  shallowCopy(res.data, cast[seq[byte]](data))
+  when declared(shallowCopy):
+    shallowCopy(res.data, cast[seq[byte]](data))
+  else:
+    res.data = cast[seq[byte]](data)
   res
 
 proc parseDisposition*[T: BChar](data: openArray[T],
@@ -923,7 +932,7 @@ proc parseDisposition*[T: BChar](data: openArray[T],
   else:
     ContentDispositionHeader(status: HttpStatus.Failure)
 
-proc parseDisposition*[T: BChar](data: seq[T]): ContentDispositionHeader =
+proc parseDisposition*[T: BChar](data: sink seq[T]): ContentDispositionHeader =
   ## Parse sequence of characters or bytes of HTTP ``Content-Disposition``
   ## header according to RFC6266.
   ##
@@ -935,7 +944,10 @@ proc parseDisposition*[T: BChar](data: seq[T]): ContentDispositionHeader =
   ##
   ## Returns `ContentDispositionHeader` instance.
   var res = parseDisposition(data, false)
-  shallowCopy(res.data, cast[seq[byte]](data))
+  when declared(shallowCopy):
+    shallowCopy(res.data, cast[seq[byte]](data))
+  else:
+    res.data = cast[seq[byte]](data)
   res
 
 proc parseAcceptHeader*[T: BChar](data: openArray[T],
