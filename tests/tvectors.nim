@@ -1130,15 +1130,15 @@ suite "HTTP Procedures test suite":
       isValid(MediaType.init("*/*")) == true
       isValid(MediaType.init("application/*")) == true
 
-  test "isWildcard(MediaType) test":
+  test "isWildCard(MediaType) test":
     let filename = "tests/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
-        check isWildcard(MediaType.init(line)) == false
+        check isWildCard(MediaType.init(line)) == false
     check:
-      isWildcard(MediaType.init("*/*")) == true
-      isWildcard(MediaType.init("text/*")) == true
-      isWildcard(MediaType.init("image/*")) == true
+      isWildCard(MediaType.init("*/*")) == true
+      isWildCard(MediaType.init("text/*")) == true
+      isWildCard(MediaType.init("image/*")) == true
 
   test "(ContentTypeData, MediaType) comparison":
     let filename = "tests/mimetypes.txt"
