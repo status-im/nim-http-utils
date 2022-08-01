@@ -39,8 +39,8 @@ const
   SEMCOL = {';'}
   SPACEO = {'\x20'}
   HOTAB = {'\x09'}
-  CHAR = {'\x00' .. '\x7F'}
-  CTL = {'\x00' .. '\x1F'}
+  CHAR = {'\x00' .. '\x7E'}
+  CTL = {'\x00' .. '\x1F', '\x7F'}
   SEPARATORS = {'(', ')', '<', '>', '@', ',', ';', ':',
                 '\\', '"', '/', '[', ']', '?', '=', '{',
                 '}'} + SPACEO + HOTAB
@@ -48,6 +48,8 @@ const
   LSEP = SEPARATORS - BSLASH - DQUOTE - EQUALS - SEMCOL -
          SPACEO - HOTAB
   LSEP2 = LSEP - COMMA - FSLASH
+  LSEP3 = LSEP - FSLASH
+  CTL2 = CTL - HOTAB
 
   # Legend:
   # [0x81, 0x8D] - markers
@@ -151,6 +153,28 @@ const
     0xCB, 0xCB, 0xCB, 0xCB, 0xCB, 0xCB, 0x8C, 0xCB, 0xCB, # sB: finish double quote
     0xCC, 0x83, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0x0C, 0x0C, # sC: semicolon and spaces
     0xCD, 0x83, 0xCD, 0xCD, 0xCD, 0xCD, 0xCD, 0x0D, 0x0D, # sD: semicolon and spaces
+  ]
+
+  #     *   CTL2   LTOK  LSEP3      /      \      ;      "      =  SPACE
+  contentTypeSM = [
+    0xE00, 0xE00, 0x801, 0xE00, 0xE00, 0xE00, 0xE00, 0xE00, 0xE00, 0xE00, # s00: start of media-type
+    0xE01, 0xE01, 0x001, 0xE01, 0x802, 0xE01, 0xE01, 0xE01, 0xE01, 0xE01, # s01: media-type and forward slash
+    0xE02, 0xE02, 0x803, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, 0xE02, # s02: forward slash
+    0xE03, 0xE03, 0x003, 0xE03, 0xE03, 0xE03, 0x805, 0xE03, 0xE03, 0x804, # s03: media-subtype
+    0xE04, 0xE04, 0xE04, 0xE04, 0xE04, 0xE04, 0x005, 0xE04, 0xE04, 0x004, # s04: spaces
+    0xE05, 0xE05, 0x806, 0xE05, 0xE05, 0xE05, 0xE05, 0xE05, 0xE05, 0x005, # s05: semicolon and spaces
+    0xE06, 0xE06, 0x006, 0xE06, 0xE06, 0xE06, 0xE06, 0xE06, 0x807, 0xE06, # s06: param-name
+    0xE07, 0xE07, 0x808, 0xE07, 0xE07, 0xE07, 0x811, 0x80B, 0xE07, 0xE07, # s07: =
+    0xE08, 0xE08, 0x008, 0xE08, 0xE08, 0xE08, 0x80A, 0xE08, 0xE08, 0x809, # s08: parm-value-token
+    0xE09, 0xE09, 0x806, 0xE09, 0xE09, 0xE09, 0x805, 0xE09, 0xE09, 0x009, # s09: spaces after parm-value-token
+    0xE0A, 0xE0A, 0x806, 0xE0A, 0xE0A, 0xE0A, 0xE0A, 0xE0A, 0xE0A, 0x00A, # s0a: semicolon and spaces
+    0x80C, 0xE0B, 0x80C, 0x80C, 0x80C, 0x80D, 0x80C, 0x80F, 0x80C, 0x80C, # s0b: starting double quote
+    0x00C, 0xE0C, 0x00C, 0x00C, 0x00C, 0x80D, 0x00C, 0x80F, 0x00C, 0x00C, # s0c: parm-value-quote
+    0x80E, 0xE0D, 0x80E, 0x80E, 0x80E, 0x80E, 0x80E, 0x80E, 0x80E, 0x80E, # s0d: escaped character
+    0x00C, 0xE0E, 0x00C, 0x00C, 0x00C, 0x80D, 0x00C, 0x80F, 0x00C, 0x00C, # s0e: parm-value-quote
+    0xE0F, 0xE0F, 0xE0F, 0xE0F, 0xE0F, 0xE0F, 0x810, 0xE0F, 0xE0F, 0x00F, # s0f: spaces after parm-value-quote
+    0xE10, 0xE10, 0x806, 0xE10, 0xE10, 0xE10, 0xE10, 0xE10, 0xE10, 0x010, # s10: semicolon and spaces
+    0xE11, 0xE11, 0x806, 0xE11, 0xE11, 0xE11, 0xE11, 0xE11, 0xE11, 0x011  # s11: empty value, semicolon and spaces
   ]
 
   #     *  LTOKN  LSEP2      /      \      ,      ;      "      =  SPACE
@@ -295,6 +319,7 @@ type
     length*: int              ## HTTP headers length
 
   ContentDispositionHeader* = object
+    ## `Content-Disposition` header
     data: seq[byte]
     state*: int
     status*: HttpStatus
@@ -324,9 +349,18 @@ type
   AcceptInfo* = object
     data*: seq[AcceptMediaItem]
 
+  ContentTypeData* = object
+    ## `Content-Type` header data
+    state*: int
+    status*: HttpStatus
+    mediaType*: MediaType
+    params*: seq[tuple[name: string, value: string]]
+
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
   BChar* = byte | char
+
+proc toString[T: BChar](data: openArray[T], start, stop: int): string
 
 template processHeaders(sm: untyped, state: var int, ch: char): int =
   let code =
@@ -404,6 +438,33 @@ template processAcceptHeader(sm: untyped, state: var int, ch: char): int =
     of EQUALS:
       8
     of SPACE:
+      9
+    else:
+      0
+  let newstate = sm[(state shl 3) + (state shl 1) + code]
+  state = newstate and 0xFF
+  newstate
+
+template processContentType(sm: untyped, state: var int, ch: char): int =
+  let code =
+    case ch
+    of CTL2:
+      1
+    of LTOKEN:
+      2
+    of LSEP3:
+      3
+    of FSLASH:
+      4
+    of BSLASH:
+      5
+    of SEMCOL:
+      6
+    of DQUOTE:
+      7
+    of EQUALS:
+      8
+    of SPACEO:
       9
     else:
       0
@@ -822,7 +883,7 @@ proc parseDisposition*[T: BChar](data: openArray[T],
   ## Parse sequence of characters or bytes of HTTP ``Content-Disposition``
   ## header according to RFC6266.
   ##
-  ## TODO: Support extended `*` values.
+  ## TODO: Support extended `<fieldname>*` values.
   ##
   ## If `makeCopy` flag is ``true``, procedure will create a copy of ``data``
   ## in result.
@@ -949,6 +1010,113 @@ proc parseDisposition*[T: BChar](data: sink seq[T]): ContentDispositionHeader =
   else:
     res.data = cast[seq[byte]](data)
   res
+
+proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeData =
+  ## Parse sequence of characters or bytes of HTTP ``Content-Type``
+  ## header according to RFC7231 (section 3.1.1.5).
+  ##
+  ## Returns `ContentTypeData` instance.
+  var
+    index = 0
+    state = 0
+    start = -1
+    finish = 0
+    name = ""
+    value = ""
+
+  var res = ContentTypeData(status: HttpStatus.Failure)
+
+  if len(data) == 0:
+    return res
+
+  while index < len(data):
+    let ps = contentTypeSM.processContentType(state, char(data[index]))
+    res.state = ps
+    case ps
+    of 0x801:
+      # media-type start
+      start = index
+    of 0x802:
+      # media-type finish
+      if start == -1:
+        break
+      finish = index - 1
+      res.mediaType.media = data.toString(start, finish)
+      start = -1
+    of 0x803:
+      # sub-media-type start
+      start = index
+    of 0x804, 0x805:
+      # sub-media-type finish
+      if start == -1:
+        break
+      finish = index - 1
+      res.mediaType.subtype = data.toString(start, finish)
+      start = -1
+    of 0x806:
+      # parameter name start
+      start = index
+    of 0x807:
+      # parameter name finish
+      if start == -1:
+        break
+      finish = index - 1
+      name = data.toString(start, finish)
+      start = -1
+    of 0x808:
+      start = index
+    of 0x809, 0x80A:
+      if start == -1:
+        break
+      finish = index - 1
+      value = data.toString(start, finish)
+      res.params.add((name: name, value: value))
+      start = -1
+    of 0x80C:
+      value.reset()
+      value.add(data[index])
+    of 0x00C, 0x80E:
+      value.add(data[index])
+    of 0x80F:
+      res.params.add((name: name, value: value))
+    of 0x811:
+      res.params.add((name: name, value: ""))
+    of 0x80B, 0x80D, 0x810:
+      discard
+    of 0x000..0x00B, 0x00D..0x011:
+      discard
+    of 0xE00..0xE10:
+      break
+    else:
+      break
+    inc(index)
+
+  res.status =
+    case res.state
+    of 0x003, 0x803:
+      if start == -1:
+        HttpStatus.Failure
+      else:
+        res.mediaType.subtype = data.toString(start, index - 1)
+        HttpStatus.Success
+    of 0x807:
+      res.params.add((name: name, value: ""))
+      HttpStatus.Success
+    of 0x808, 0x008:
+      if start == -1:
+        HttpStatus.Failure
+      else:
+        res.params.add((name: name, value: data.toString(start, index - 1)))
+        HttpStatus.Success
+    of 0x80F:
+      HttpStatus.Success
+    else:
+      HttpStatus.Failure
+
+  if res.status == HttpStatus.Success:
+    res
+  else:
+    ContentTypeData(status: HttpStatus.Failure)
 
 proc parseAcceptHeader*[T: BChar](data: openArray[T],
                                   makeCopy: bool): AcceptHeader =
@@ -1081,12 +1249,12 @@ proc parseAcceptHeader*[T: BChar](data: openArray[T],
     AcceptHeader(status: HttpStatus.Failure)
 
 template success*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                  AcceptHeader): bool =
+                           AcceptHeader | ContentTypeData): bool =
   ## Returns ``true`` is ``reqresp`` was successfully parsed.
   reqresp.status == HttpStatus.Success
 
 template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                 AcceptHeader): bool =
+                          AcceptHeader | ContentTypeData): bool =
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
@@ -1111,7 +1279,7 @@ proc contains*(reqresp: HttpReqRespHeader, header: string): bool =
         return true
   return false
 
-proc toString(data: openArray[byte], start, stop: int): string =
+proc toString[T: BChar](data: openArray[T], start, stop: int): string =
   ## Slice a raw data blob into a string
   ## This is an inclusive slice
   ## The output string is null-terminated for raw C-compat
@@ -1241,6 +1409,30 @@ proc cmp*(x, y: MediaType): int =
 
 proc `==`*(x, y: MediaType): bool =
   cmp(x, y) == 0
+
+proc isValid*(x: MediaType): bool =
+  ## Returns ``true`` if MediaType ``x`` is not empty and do not have illegal
+  ## characters.
+  if (len(x.media) == 0) or (len(x.subtype) == 0):
+    false
+  else:
+    for ch in x.media:
+      if ch notin LTOKEN:
+        return false
+    for ch in x.subtype:
+      if ch notin LTOKEN:
+        return false
+    true
+
+proc isWildCard*(x: MediaType): bool =
+  ## Returns ``true`` if media type ``x`` is not empty and do not have wildcard
+  ## values in ``media`` or ``subtype``.
+  ##
+  ## Values like `*/*` or `application/*` are wildcard types.
+  if (len(x.media) == 0) or (len(x.subtype) == 0):
+    false
+  else:
+    (x.media == "*") or (x.subtype == "*")
 
 proc `$`*(s: AcceptMediaItem): string =
   ## Returns string representation of AcceptMediaItem object.
@@ -1441,6 +1633,42 @@ proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
     ok(AcceptInfo(data: res))
   else:
     err("Invalid Accept header format")
+
+proc getContentType*(value: string): Result[ContentTypeData, cstring] =
+  let header = parseContentType(value)
+  if header.success():
+    ok(header)
+  else:
+    err("Invalid Content-Type header format")
+
+proc `==`*(a: ContentTypeData, b: MediaType): bool =
+  if a.status != HttpStatus.Success:
+    false
+  else:
+    a.mediaType == b
+
+proc `==`*(a: MediaType, b: ContentTypeData): bool =
+  `==`(b, a)
+
+proc `==`*(a, b: ContentTypeData): bool =
+  if (a.status != HttpStatus.Success) or (b.status != HttpStatus.Success):
+    return false
+  if a.mediaType != b.mediaType:
+    return false
+  if len(a.params) != len(b.params):
+    return false
+  if len(a.params) > 0:
+    proc cmpTuple(a, b: tuple[name: string, value: string]): int =
+      let res = cmpIgnoreCase(a.name, b.name)
+      if res != 0:
+        return res
+      cmpIgnoreCase(a.value, b.value)
+    let aparams = a.params.sorted(cmpTuple, SortOrder.Ascending)
+    let bparams = b.params.sorted(cmpTuple, SortOrder.Ascending)
+    for index, item in aparams.pairs():
+      if cmpTuple(item, bparams[index]) != 0:
+        return false
+  true
 
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.

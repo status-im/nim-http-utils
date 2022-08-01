@@ -983,3 +983,222 @@ suite "HTTP Procedures test suite":
         res3.get() == MediaType.init(vector[1][3])
         res4.get() == MediaType.init(vector[1][4])
         res5.get() == MediaType.init(vector[1][5])
+
+  test "Content-Type header parser mime-types vectors test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        check:
+          getContentType(line).isOk()
+          getContentType(line & "; charset=utf-8").isOk()
+          getContentType(line & "; charset=\"utf-8\"").isOk()
+
+  test "Content-Type header parser test vectors":
+
+    const
+      Token = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz" &
+                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      QdText =
+        "\t !#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ" &
+        "[]^_`abcdefghijklmnopqrstuvwxyz{|}~" &
+        "\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8A\x8B\x8C\x8D\x8E\x8F" &
+        "\x90\x91\x92\x93\x94\x95\x96\x97\x99\x99\x9A\x9B\x9C\x9D\x9E\x9F" &
+        "\xA0\xA1\xA2\xA3\xA4\xA5\xA6\xA7\xAA\xA9\xAA\xAB\xAC\xAD\xAE\xAF" &
+        "\xB0\xB1\xB2\xB3\xB4\xB5\xB6\xB7\xBB\xB9\xBA\xBB\xBC\xBD\xBE\xBF" &
+        "\xC0\xC1\xC2\xC3\xC4\xC5\xC6\xC7\xCC\xC9\xCA\xCB\xCC\xCD\xCE\xCF" &
+        "\xD0\xD1\xD2\xD3\xD4\xD5\xD6\xD7\xDD\xD9\xDA\xDB\xDC\xDD\xDE\xDF" &
+        "\xE0\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xEE\xE9\xEA\xEB\xEC\xEE\xEE\xEF" &
+        "\xF0\xF1\xF2\xF3\xF4\xF5\xF6\xF7\xFF\xF9\xFA\xFB\xFC\xFF\xFE\xFF"
+
+      FailureVectors = [
+        "",
+        "\x7F",
+        "\x80",
+        "\xFF",
+        " ",
+        "\t",
+        "text",
+        "html",
+        "text/",
+        "text\\",
+        " text/html",
+        "\xFFtext/html",
+        "\x80text/html",
+        "\x7Ftext/html",
+        "tex\x7Ft/html",
+        "text/\xFFhtml",
+        "text/\x80html",
+        "text/\x7Fhtml",
+        "text/html;",
+        "text/html; ",
+        "text/html;a",
+        "text/html;\xFF",
+        "text/html;\x80",
+        "text/html;\x7F",
+        "text/html;a=;",
+        "text/html;a=b;b=c;c=d;",
+        "text/html;a=b;b=c;c=d; ",
+        "text/html;a=\"",
+        "text/html;a=\"\"\"",
+        "text/html;a=\x7F",
+        "text/html;a=\x80",
+        "text/html;a=\xFF",
+        "text/html;a=\x00",
+        "text/html;a=\x1F",
+        "text/html;a=\"\x00\"",
+        "text/html;a=\"\x1F\"",
+        "text/html;a= "
+      ]
+
+      SuccessVectors = [
+        ("text/html;a=", ("text/html",
+          @[("a", "")])),
+        ("text/html", ("text/html",
+          @[])),
+        ("text/html;a=\"\"", ("text/html",
+          @[("a", "")])),
+        ("text/html;a=\"\\\\\"", ("text/html",
+          @[("a", "\\")])),
+        ("text/html;a=\"\\\"\"", ("text/html",
+          @[("a", "\"")])),
+        ("text/html;a=\"\\aa\"", ("text/html",
+          @[("a", "aa")])),
+        ("text/html;a=\"\x80\xFF\"", ("text/html",
+          @[("a", "\x80\xFF")])),
+        ("text/html;a=\"\t\"", ("text/html",
+          @[("a", "\t")])),
+        ("text/html;a=\" \"", ("text/html",
+          @[("a", " ")])),
+        ("text/html;a=b", ("text/html",
+          @[("a", "b")])),
+        ("text/html;a=\"b\"", ("text/html",
+          @[("a", "b")])),
+        ("text/html;a=b;b=c", ("text/html",
+          @[("a", "b"), ("b", "c")])),
+        ("text/html;a=b;b=c;c=d", ("text/html",
+          @[("a", "b"), ("b", "c"), ("c", "d")])),
+        ("text/html;a=;b=;c=", ("text/html",
+          @[("a", ""), ("b", ""), ("c", "")])),
+        ("text/html;a=;b=c;c=d", ("text/html",
+          @[("a", ""), ("b", "c"), ("c", "d")])),
+        ("text/html;a=b;b=;c=d", ("text/html",
+          @[("a", "b"), ("b", ""), ("c", "d")])),
+        ("text/html;a=b;b=c;c=", ("text/html",
+          @[("a", "b"), ("b", "c"), ("c", "")])),
+        ("text/html;a=;b=\"\";c=", ("text/html",
+          @[("a", ""), ("b", ""), ("c", "")])),
+        ("text/html;a=;b=\"\";c=\"\"", ("text/html",
+          @[("a", ""), ("b", ""), ("c", "")]))
+      ]
+    for item in FailureVectors:
+      check getContentType(item).isErr()
+
+    for item in SuccessVectors:
+      let res = getContentType(item[0])
+      check res.isOk()
+      let content = res.get()
+      check:
+        content.mediaType.media & "/" & content.mediaType.subtype == item[1][0]
+      let params = content.params
+      check:
+        len(params) == len(item[1][1])
+      for index, param in params.pairs():
+        check:
+          param[0] == item[1][1][index][0]
+          param[1] == item[1][1][index][1]
+
+    block:
+      # Token/Token; Token=Token; Token="QdText"
+      let contentType = Token & "/" & Token & "; " &
+                        Token & "=" & Token & "; " &
+                        Token & "=\"" & QdText & "\""
+      let res = getContentType(contentType)
+      check res.isOk()
+      let data = res.get()
+      check:
+        data.mediaType.media == Token
+        data.mediaType.subtype == Token
+        data.params[0] == (name: Token, value: Token)
+        data.params[1] == (name: Token, value: QdText)
+
+  test "isValid(MediaType) test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        check isValid(MediaType.init(line)) == true
+    check:
+      isValid(MediaType.init("*/*")) == true
+      isValid(MediaType.init("application/*")) == true
+
+  test "isWildCard(MediaType) test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        check isWildCard(MediaType.init(line)) == false
+    check:
+      isWildCard(MediaType.init("*/*")) == true
+      isWildCard(MediaType.init("text/*")) == true
+      isWildCard(MediaType.init("image/*")) == true
+
+  test "(ContentTypeData, MediaType) comparison":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        let
+          contentType1 = getContentType(line & "; charset=utf-8").tryGet()
+          contentType2 = getContentType(line & "; charset=ISO-8859-1").tryGet()
+          mediaType = MediaType.init(line)
+
+        check:
+          contentType1 == mediaType
+          contentType2 == mediaType
+          contentType1 == MediaType.init("*/*")
+
+  test "(ContentTypeData, ContentTypeData) comparison":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        let
+          contentType1 = getContentType(line).tryGet()
+          contentType2 = getContentType(line & "; charset=\"utf-8\"").tryGet()
+          contentType3 = getContentType(line & "; charset=utf-8").tryGet()
+          contentType4 = getContentType(line & "; ChArSeT=utf-8").tryGet()
+          contentType5 = getContentType(line & "; ChArSeT=UTF-8").tryGet()
+          contentType6 = getContentType(line & "; ChArSeT=ISO-8859-1").tryGet()
+          contentType7 = getContentType(line & "; ChArSeT=iso-8859-1").tryGet()
+
+        check:
+          contentType1 == contentType1
+          contentType1 != contentType2
+          contentType1 != contentType3
+          contentType1 != contentType4
+          contentType1 != contentType5
+          contentType1 != contentType6
+          contentType1 != contentType7
+
+          contentType2 == contentType2
+          contentType2 == contentType3
+          contentType2 == contentType4
+          contentType2 == contentType5
+          contentType2 != contentType6
+          contentType2 != contentType7
+
+          contentType3 == contentType3
+          contentType3 == contentType4
+          contentType3 == contentType5
+          contentType3 != contentType6
+          contentType3 != contentType7
+
+          contentType4 == contentType4
+          contentType4 == contentType5
+          contentType4 != contentType6
+          contentType4 != contentType7
+
+          contentType5 == contentType5
+          contentType5 != contentType6
+          contentType5 != contentType7
+
+          contentType6 == contentType6
+          contentType6 == contentType7
+
+          contentType7 == contentType7
