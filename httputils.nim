@@ -349,8 +349,8 @@ type
   AcceptInfo* = object
     data*: seq[AcceptMediaItem]
 
-  ContentTypeHeader* = object
-    ## `Content-Type` header
+  ContentTypeData* = object
+    ## `Content-Type` header data
     state*: int
     status*: HttpStatus
     mediaType*: MediaType
@@ -1011,11 +1011,11 @@ proc parseDisposition*[T: BChar](data: sink seq[T]): ContentDispositionHeader =
     res.data = cast[seq[byte]](data)
   res
 
-proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeHeader =
+proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeData =
   ## Parse sequence of characters or bytes of HTTP ``Content-Type``
   ## header according to RFC7231 (section 3.1.1.5).
   ##
-  ## Returns `ContentTypeHeader` instance.
+  ## Returns `ContentTypeData` instance.
   var
     index = 0
     state = 0
@@ -1024,7 +1024,7 @@ proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeHeader =
     name = ""
     value = ""
 
-  var res = ContentTypeHeader(status: HttpStatus.Failure)
+  var res = ContentTypeData(status: HttpStatus.Failure)
 
   if len(data) == 0:
     return res
@@ -1116,7 +1116,7 @@ proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeHeader =
   if res.status == HttpStatus.Success:
     res
   else:
-    ContentTypeHeader(status: HttpStatus.Failure)
+    ContentTypeData(status: HttpStatus.Failure)
 
 proc parseAcceptHeader*[T: BChar](data: openArray[T],
                                   makeCopy: bool): AcceptHeader =
@@ -1249,12 +1249,12 @@ proc parseAcceptHeader*[T: BChar](data: openArray[T],
     AcceptHeader(status: HttpStatus.Failure)
 
 template success*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                           AcceptHeader | ContentTypeHeader): bool =
+                           AcceptHeader | ContentTypeData): bool =
   ## Returns ``true`` is ``reqresp`` was successfully parsed.
   reqresp.status == HttpStatus.Success
 
 template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                          AcceptHeader | ContentTypeHeader): bool =
+                          AcceptHeader | ContentTypeData): bool =
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
@@ -1409,6 +1409,30 @@ proc cmp*(x, y: MediaType): int =
 
 proc `==`*(x, y: MediaType): bool =
   cmp(x, y) == 0
+
+proc isValid*(x: MediaType): bool =
+  ## Returns ``true`` if MediaType ``x`` is not empty and do not have illegal
+  ## characters.
+  if (len(x.media) == 0) or (len(x.subtype) == 0):
+    false
+  else:
+    for ch in x.media:
+      if ch notin LTOKEN:
+        return false
+    for ch in x.subtype:
+      if ch notin LTOKEN:
+        return false
+    true
+
+proc isWildCard*(x: MediaType): bool =
+  ## Returns ``true`` if media type ``x`` is not empty and do not have wildcard
+  ## values in ``media`` or ``subtype``.
+  ##
+  ## Values like `*/*` or `application/*` are wildcard types.
+  if (len(x.media) == 0) or (len(x.subtype) == 0):
+    false
+  else:
+    (x.media == "*") or (x.subtype == "*")
 
 proc `$`*(s: AcceptMediaItem): string =
   ## Returns string representation of AcceptMediaItem object.
@@ -1610,12 +1634,41 @@ proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
   else:
     err("Invalid Accept header format")
 
-proc getContentType*(value: string): Result[ContentTypeHeader, cstring] =
+proc getContentType*(value: string): Result[ContentTypeData, cstring] =
   let header = parseContentType(value)
   if header.success():
     ok(header)
   else:
     err("Invalid Content-Type header format")
+
+proc `==`*(a: ContentTypeData, b: MediaType): bool =
+  if a.status != HttpStatus.Success:
+    false
+  else:
+    a.mediaType == b
+
+proc `==`*(a: MediaType, b: ContentTypeData): bool =
+  `==`(b, a)
+
+proc `==`*(a, b: ContentTypeData): bool =
+  if (a.status != HttpStatus.Success) or (b.status != HttpStatus.Success):
+    return false
+  if a.mediaType != b.mediaType:
+    return false
+  if len(a.params) != len(b.params):
+    return false
+  if len(a.params) > 0:
+    proc cmpTuple(a, b: tuple[name: string, value: string]): int =
+      let res = cmpIgnoreCase(a.name, b.name)
+      if res != 0:
+        return res
+      cmpIgnoreCase(a.value, b.value)
+    let aparams = a.params.sorted(cmpTuple, SortOrder.Ascending)
+    let bparams = b.params.sorted(cmpTuple, SortOrder.Ascending)
+    for index, item in aparams.pairs():
+      if cmpTuple(item, bparams[index]) != 0:
+        return false
+  true
 
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.

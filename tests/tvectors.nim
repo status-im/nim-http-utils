@@ -1120,3 +1120,85 @@ suite "HTTP Procedures test suite":
         data.mediaType.subtype == Token
         data.params[0] == (name: Token, value: Token)
         data.params[1] == (name: Token, value: QdText)
+
+  test "isValid(MediaType) test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        check isValid(MediaType.init(line)) == true
+    check:
+      isValid(MediaType.init("*/*")) == true
+      isValid(MediaType.init("application/*")) == true
+
+  test "isWildcard(MediaType) test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        check isWildcard(MediaType.init(line)) == false
+    check:
+      isWildcard(MediaType.init("*/*")) == true
+      isWildcard(MediaType.init("text/*")) == true
+      isWildcard(MediaType.init("image/*")) == true
+
+  test "(ContentTypeData, MediaType) comparison":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        let
+          contentType1 = getContentType(line & "; charset=utf-8").tryGet()
+          contentType2 = getContentType(line & "; charset=ISO-8859-1").tryGet()
+          mediaType = MediaType.init(line)
+
+        check:
+          contentType1 == mediaType
+          contentType2 == mediaType
+          contentType1 == MediaType.init("*/*")
+
+  test "(ContentTypeData, ContentTypeData) comparison":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        let
+          contentType1 = getContentType(line).tryGet()
+          contentType2 = getContentType(line & "; charset=\"utf-8\"").tryGet()
+          contentType3 = getContentType(line & "; charset=utf-8").tryGet()
+          contentType4 = getContentType(line & "; ChArSeT=utf-8").tryGet()
+          contentType5 = getContentType(line & "; ChArSeT=UTF-8").tryGet()
+          contentType6 = getContentType(line & "; ChArSeT=ISO-8859-1").tryGet()
+          contentType7 = getContentType(line & "; ChArSeT=iso-8859-1").tryGet()
+
+        check:
+          contentType1 == contentType1
+          contentType1 != contentType2
+          contentType1 != contentType3
+          contentType1 != contentType4
+          contentType1 != contentType5
+          contentType1 != contentType6
+          contentType1 != contentType7
+
+          contentType2 == contentType2
+          contentType2 == contentType3
+          contentType2 == contentType4
+          contentType2 == contentType5
+          contentType2 != contentType6
+          contentType2 != contentType7
+
+          contentType3 == contentType3
+          contentType3 == contentType4
+          contentType3 == contentType5
+          contentType3 != contentType6
+          contentType3 != contentType7
+
+          contentType4 == contentType4
+          contentType4 == contentType5
+          contentType4 != contentType6
+          contentType4 != contentType7
+
+          contentType5 == contentType5
+          contentType5 != contentType6
+          contentType5 != contentType7
+
+          contentType6 == contentType6
+          contentType6 == contentType7
+
+          contentType7 == contentType7
