@@ -1670,6 +1670,16 @@ proc `==`*(a, b: ContentTypeData): bool =
         return false
   true
 
+proc `$`*(a: ContentTypeData): string =
+  if a.status != HttpStatus.Success:
+    "<incomplete>"
+  else:
+    let params = a.params.mapIt(it.name & "=\"" & it.value & "\"").join("; ")
+    if len(params) > 0:
+      $a.mediaType & "; " & params
+    else:
+      $a.mediaType
+
 proc uri*(request: HttpRequestHeader): string =
   ## Returns HTTP request URI as string from ``request``.
   if request.success():
