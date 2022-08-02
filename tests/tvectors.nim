@@ -1202,3 +1202,15 @@ suite "HTTP Procedures test suite":
           contentType6 == contentType7
 
           contentType7 == contentType7
+
+  test "ContenTypeData to string test":
+    let filename = "tests/mimetypes.txt"
+    for line in filename.lines():
+      if len(line) != 0:
+        let header = line & "; charset=\"utf-8\"; boundary=\"boundary\""
+        let contentType = getContentType(
+          line & "; charset=utf-8; boundary=boundary").tryGet()
+        check:
+          $contentType == header
+    check:
+      $ContentTypeData(status: HttpStatus.Failure) == "<incomplete>"
