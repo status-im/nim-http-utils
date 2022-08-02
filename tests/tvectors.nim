@@ -1208,9 +1208,12 @@ suite "HTTP Procedures test suite":
     for line in filename.lines():
       if len(line) != 0:
         let header = line & "; charset=\"utf-8\"; boundary=\"boundary\""
-        let contentType = getContentType(
-          line & "; charset=utf-8; boundary=boundary").tryGet()
+        let
+          contentType1 = getContentType(
+            line & "; charset=utf-8; boundary=boundary").tryGet()
+          contentType2 = getContentType(line).tryGet()
         check:
-          $contentType == header
+          $contentType1 == header
+          $contentType2 == line
     check:
       $ContentTypeData(status: HttpStatus.Failure) == "<incomplete>"
