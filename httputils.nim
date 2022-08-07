@@ -1629,7 +1629,6 @@ proc getAcceptInfo*(value: string): Result[AcceptInfo, cstring] =
   if header.success():
     for item in header.mediaItems(toparse.toOpenArrayByte(0, len(toparse) - 1)):
       res.add(item)
-    res.sort(cmp, SortOrder.Descending)
     ok(AcceptInfo(data: res))
   else:
     err("Invalid Accept header format")
@@ -1899,41 +1898,3 @@ proc toInt*(code: HttpCode): int =
     of Http505: 505
 
 const wildCardMediaType* = MediaType.init("*", "*")
-
-proc improveMatch(initialAcceptHeadersMatchIndex: int,
-                  initialAppPreferencesMatchIndex: int,
-                  matchQ: float,
-                  sortedAcceptHeaders: seq[AcceptMediaItem],
-                  sortedAppPreferences: varargs[MediaType]): MediaType =
-  var bestAppPreferencesIndex = initialAppPreferencesMatchIndex
-
-  for acceptIndex in initialAcceptHeadersMatchIndex .. len(sortedAcceptHeaders) - 1:
-    if sortedAcceptHeaders[acceptIndex].qvalue < matchQ:
-      # If 'q' parameter change, no point continuing
-      break
-    # Searching for better match between lower indexes of application preferences
-    # than current match
-    for offerIndex in 0 ..< bestAppPreferencesIndex:
-      if sortedAcceptHeaders[acceptIndex].mediaType == sortedAppPreferences[offerIndex]:
-        bestAppPreferencesIndex = offerIndex
-        # The next element will higher index => worse match, so no point in continuing:
-        break
-  sortedAppPreferences[bestAppPreferencesIndex]
-
-proc selectContentType*(
-  sortedAcceptHeaders: seq[AcceptMediaItem],
-  sortedAppPreferences: varargs[MediaType]): Result[MediaType, cstring] =
-  # Step 1: Find first accept header that matches:
-  for i, accept in sortedAcceptHeaders.pairs:
-    for j, offer in sortedAppPreferences.pairs:
-      if accept.mediaType == offer:
-        let matchQ = accept.qvalue
-        # Step 2: Try to find a better match in application preferenced content
-        # types with the same 'q' parameter
-        return ok(improveMatch(i,
-                               j,
-                               matchQ,
-                               sortedAcceptHeaders,
-                               sortedAppPreferences))
-  # If there is no match:
-  return err("Preferred content type not found")
