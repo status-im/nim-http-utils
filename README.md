@@ -7,7 +7,7 @@
 # Installation
 
 ```
-nimble install https://github.com/status-im/nim-http-utils
+nimble install httputils
 ```
 or
 ```
@@ -16,7 +16,7 @@ git clone https://github.com/status-im/nim-http-utils
 
 ## Requirements
 
-* Nim 0.17.3 and up
+* Nim 1.2 and up
 
 ## Documentation
 
