@@ -80,7 +80,15 @@ const RequestVectors = [
     "X-Amz-Date:20150830T123600Z\r\n\r\n",
   "GET / HTTP/1.1\r\n" &
     "Sec-Fetch-User: ?1\r\n" &
-    "Sec-Fetch-Mode:@1\r\n\r\n"
+    "Sec-Fetch-Mode:@1\r\n\r\n",
+  "GET / HTTP/1.1\r\n" &
+    "Content-Security-Policy: default-src 'self';\r\n script-src 'self'\r\n 'unsafe-inline'\r\n 'unsafe-eval';\r\n img-src 'self'\r\n data:;\r\n style-src 'self'\r\n 'unsafe-inline';\r\n font-src 'self';\r\n child-src 'self';\r\n object-src 'none'\r\n" &
+    "X-XSS-Protection 1; mode=block\r\n" &
+    "X-Xss-Protection:\r\n",
+  "GET / HTTP/1.1\r\n" &
+    "Content-Security-Policy: default-src 'self';\r\n\tscript-src 'self'\r\n\t'unsafe-inline'\r\n\t'unsafe-eval';\r\n\timg-src 'self'\r\n\tdata:;\r\n\tstyle-src 'self'\r\n\t'unsafe-inline';\r\n\tfont-src 'self';\r\n\tchild-src 'self';\r\n\tobject-src 'none'\r\n" &
+    "X-XSS-Protection 1; mode=block\r\n" &
+    "X-Xss-Protection:\r\n"
 ]
 
 const RequestHeaderTexts = [
@@ -138,7 +146,7 @@ const RequestHeaderTexts = [
 const RequestResults = [
   0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0xC2, 0x8E, 0x8E,
   0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E,
-  0x8E, 0x8E, 0x8E, 0x8E
+  0x8E, 0x8E, 0x8E, 0x8E, 0xC5, 0xC5
 ]
 
 const RequestHeaders = [
@@ -169,7 +177,7 @@ const RequestUris = [
 
 const RequestCLengths = [
   0, 0, 0, 0, 0, 0, 5, 5, -1, 10, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0,
-  0
+  0, -1, -1
 ]
 
 const ResponseVectors = [
