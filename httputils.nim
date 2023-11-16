@@ -6,6 +6,9 @@
 #              Licensed under either of
 #  Apache License, version 2.0, (LICENSE-APACHEv2)
 #              MIT license (LICENSE-MIT)
+
+{.push raises: [].}
+
 import std/[times, strutils, algorithm, sequtils]
 import stew/results
 export results
@@ -1476,6 +1479,12 @@ proc cmp*(x, y: AcceptMediaItem): int {.procvar.} =
   if x.qvalue < y.qvalue: return -1
   return 1
 
+template parseFloatSafe(value: string): float =
+  try:
+    parseFloat(value)
+  except ValueError:
+    raiseAssert "Value should not be incorrect float"
+
 proc getQvalue*(value: string): Result[float, cstring] =
   ## Parse quality value string and returns floating point number. If quality
   ## value string format is not acceptable error will be returned.
@@ -1510,7 +1519,7 @@ proc getQvalue*(value: string): Result[float, cstring] =
     case value[0]
     of '0':
       if isDigit(value[2]):
-        return ok(parseFloat(value))
+        return ok(parseFloatSafe(value))
       err(IncorrectQValue)
     of '1':
       if value[2] == '0':
@@ -1524,7 +1533,7 @@ proc getQvalue*(value: string): Result[float, cstring] =
     case value[0]
     of '0':
       if isDigit(value[2]) and isDigit(value[3]):
-        return ok(parseFloat(value))
+        return ok(parseFloatSafe(value))
       err(IncorrectQValue)
     of '1':
       if (value[2] == '0') and (value[3] == '0'):
@@ -1538,7 +1547,7 @@ proc getQvalue*(value: string): Result[float, cstring] =
     case value[0]
     of '0':
       if isDigit(value[2]) and isDigit(value[3]) and isDigit(value[4]):
-        return ok(parseFloat(value))
+        return ok(parseFloatSafe(value))
       err(IncorrectQValue)
     of '1':
       if (value[2] == '0') and (value[3] == '0') and (value[4] == '0'):
