@@ -10,7 +10,9 @@ skipDirs      = @["tests", "Nim"]
 ### Dependencies
 requires "nim >= 1.6.0",
          "stew",
+         "results",
          "unittest2"
+
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
 let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
