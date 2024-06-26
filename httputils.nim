@@ -10,7 +10,7 @@
 {.push raises: [].}
 
 import std/[times, strutils, algorithm, sequtils]
-import stew/results
+import results
 export results
 
 const

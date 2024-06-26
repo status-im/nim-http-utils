@@ -10,7 +10,9 @@ skipDirs      = @["tests", "Nim"]
 ### Dependencies
 requires "nim >= 1.6.0",
          "stew",
+         "results",
          "unittest2"
+
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
 let flags = getEnv("NIMFLAGS", "") # Extra flags for the compiler
@@ -25,9 +27,9 @@ proc build(args, path: string) =
   exec nimc & " " & lang & " " & cfg & " " & flags & " " & args & " " & path
 
 proc run(args, path: string) =
-  build args & " -r", path
+  build args & " --mm:refc -r", path
   if (NimMajor, NimMinor) > (1, 6):
-    build args & " --mm:refc -r", path
+    build args & " --mm:orc -r", path
 
 task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
