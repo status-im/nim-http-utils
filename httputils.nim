@@ -217,6 +217,7 @@ type
     Http204 = "204 No Content",
     Http205 = "205 Reset Content",
     Http206 = "206 Partial Content",
+    Http207 = "207 Multi-Status",
     Http300 = "300 Multiple Choices",
     Http301 = "301 Moved Permanently",
     Http302 = "302 Found",
@@ -1867,6 +1868,7 @@ proc toHttpCode*(code: int): Opt[HttpCode] =
   of 204: Opt.some(Http204)
   of 205: Opt.some(Http205)
   of 206: Opt.some(Http206)
+  of 207: Opt.some(Http207)
   of 300: Opt.some(Http300)
   of 301: Opt.some(Http301)
   of 302: Opt.some(Http302)
@@ -1919,6 +1921,7 @@ proc toInt*(code: HttpCode): int =
   of Http204: 204
   of Http205: 205
   of Http206: 206
+  of Http207: 207
   of Http300: 300
   of Http301: 301
   of Http302: 302
