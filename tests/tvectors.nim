@@ -253,7 +253,18 @@ const ResponseVectors = [
     "\r\n",
   "HTTP/1.1 200 \r\n" &
     "content-length: 458\r\n" &
-    "\r\n"
+    "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+    "Date: Fri, 13 Mar 2026 19:38:16 GMT\r\n" &
+    "Content-Type: application/json\r\n" &
+    "Content-Length: 102\r\n" &
+    "Connection: close\r\n" &
+    "Access-Control-Allow-Origin: *\r\n" &
+    "Vary: Accept-Encoding\r\n" &
+    "X-Info-Build: 3.40.0 (2026-03-12T14:41:48Z)\r\n" &
+    "X-Info-Node: (9c443c04-6d7f-400e-beb1-72168521d261 - blb-v2-linea-sepolia-6446587fd7-7wh56)\r\n" &
+    "X-Trace-Id: e528fe9b15ff5bca20691828ff9b97f4\r\n" &
+    "\r\n",
 ]
 
 const ResponseHeaderTexts = [
@@ -315,29 +326,39 @@ const ResponseHeaderTexts = [
 
   (k: "Content-Length", v: "99223372036854775807"),
 
-  (k: "Content-Length", v: "458")
+  (k: "Content-Length", v: "458"),
+
+  (k: "Date", v: "Fri, 13 Mar 2026 19:38:16 GMT"),
+  (k: "Content-Type", v: "application/json"),
+  (k: "Content-Length", v: "102"),
+  (k: "Connection", v: "close"),
+  (k: "Access-Control-Allow-Origin", v: "*"),
+  (k: "Vary", v: "Accept-Encoding"),
+  (k: "X-Info-Build", v: "3.40.0 (2026-03-12T14:41:48Z)"),
+  (k: "X-Info-Node", v: "(9c443c04-6d7f-400e-beb1-72168521d261 - blb-v2-linea-sepolia-6446587fd7-7wh56)"),
+  (k: "X-Trace-Id", v: "e528fe9b15ff5bca20691828ff9b97f4")
 ]
 
 const ResponseResults = [ 0x9F, 0x9F, 0x9F, 0x9F, 0xC3, 0x9F, 0x9F, 0x9F, 0x9F,
-                          0x9F, 0x9F, 0x9F, 0x9F ]
+                          0x9F, 0x9F, 0x9F, 0x9F, 0x9F ]
 
 const ResponseHeaders = [ (0, 7), (8, 12), (0, -1), (0, -1), (0, -1), (13, 16),
                           (17, 25), (26, 36), (37, 45), (46, 46), (47, 47),
-                          (48, 48), (49, 49)]
+                          (48, 48), (49, 49), (50, 58) ]
 
 const ResponseVersions = [HttpVersion11, HttpVersion10, HttpVersion11,
                           HttpVersion11, HttpVersion11, HttpVersion11,
                           HttpVersion10, HttpVersion11, HttpVersion11,
                           HttpVersion20, HttpVersion09, HttpVersion09,
-                          HttpVersion11]
+                          HttpVersion11, HttpVersion11]
 
 const ResponseCodes = [301, 200, 404, 503, 200, 200, 301, 200, 301, 200, 200,
-                       200, 200]
+                       200, 200, 200]
 
 const ResponseReasons = ["Moved Permanently", "OK", "Not Found", "", "", "OK",
                          "Moved Permanently", "OK", "MovedPermanently",
-                         "Success", "", "", ""]
-const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1, 458]
+                         "Success", "", "", "", "OK"]
+const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1, 458, 102 ]
 
 suite "HTTP Procedures test suite":
   test "HTTP Request Vectors":
@@ -382,6 +403,10 @@ suite "HTTP Procedures test suite":
     for i in 0..<len(ResponseVectors):
       var a = cast[seq[char]](ResponseVectors[i])
       var resp = parseResponse(a)
+      echo "Parsed response: ", resp
+      echo "Testing response vector ", i
+      echo "Content-Length: ", resp.contentLength()
+      echo "len response: ", len(resp)
       if ResponseResults[i] == 0x9F:
         check:
           resp.success() == true
@@ -411,6 +436,9 @@ suite "HTTP Procedures test suite":
           check (ResponseHeaderTexts[ei].k in resp) == true
 
         for ei in ResponseHeaders[i][0]..ResponseHeaders[i][1]:
+          if resp[ResponseHeaderTexts[ei].k] != ResponseHeaderTexts[ei].v:
+            echo "Checking header: ", ResponseHeaderTexts[ei].k, " with value: ", ResponseHeaderTexts[ei].v
+            echo "Actual value: ", resp[ResponseHeaderTexts[ei].k]
           check (resp[ResponseHeaderTexts[ei].k] == ResponseHeaderTexts[ei].v)
 
   test "HTTP request methods test":
