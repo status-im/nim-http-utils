@@ -484,6 +484,70 @@ suite "HTTP Procedures test suite":
         chs[0] = chr(a)
         check checkHeaderValue(chs) == false
 
+  test "RFC 7230 Section 3.2 tchar and field-value special characters":
+    # https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+    # RFC 7230 §3.2 defines header field names as `token = 1*tchar` where:
+    # tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    #         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    const TcharSpecial = ['!', '#', '$', '%', '&', '\'', '*', '+', '-', '.',
+                          '^', '_', '`', '|', '~']
+
+    # Each tchar special character must be valid in a header name on its own
+    for ch in TcharSpecial:
+      check checkHeaderName($ch) == true
+
+    # Separator characters explicitly listed in RFC 7230 §3.2.6 as NOT tchar
+    # These are the "delimiters" that must not appear in tokens/field-names
+    const Separators = ['(', ')', '<', '>', '@', ',', ';', ':',
+                        '\\', '"', '/', '[', ']', '?', '=', '{', '}',
+                        ' ', '\t']
+    for ch in Separators:
+      check checkHeaderName($ch) == false
+
+    # Control characters (CTL = %x00-1F) and DEL (%x7F) are not tchar
+    for code in 0x00 .. 0x1F:
+      check checkHeaderName($chr(code)) == false
+    check checkHeaderName($chr(0x7F)) == false
+
+    # field-value: VCHAR (%x21-7E) are all valid characters
+    for code in 0x21 .. 0x7E:
+      check checkHeaderValue($chr(code)) == true
+
+    # field-value: SP (%x20) and HTAB (%x09) are valid whitespace within values
+    check checkHeaderValue($chr(0x20)) == true  # SP
+    check checkHeaderValue($chr(0x09)) == true  # HTAB
+
+    # field-value: obs-text (%x80-FF) is valid for backwards compatibility
+    for code in 0x80 .. 0xFF:
+      check checkHeaderValue($chr(code)) == true
+
+    # field-value: CR (%x0D) and LF (%x0A) terminate the header and must be rejected
+    check checkHeaderValue($CR) == false
+    check checkHeaderValue($LF) == false
+
+  test "RFC special chars in parseResponse":
+    # https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+    # All RFC 7230 tchar special characters must be valid in header names
+    # tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    #         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    const TcharName = "!#$%&'*+-.^_`|~0123456789azAZ"
+    # Separator characters are NOT valid in header names but ARE valid in values
+    # per RFC 7230 §3.2.6: separators = "(" / ")" / "<" / ">" / "@" / "," /
+    #                                   ";" / ":" / "\" / <"> / "/" / "[" / "]" /
+    #                                   "?" / "=" / "{" / "}"
+    const SeparatorsValue = "()<>@,;:\\\"/[]?={}"
+
+    let response =
+      "HTTP/1.1 200 OK\r\n" &
+      TcharName & ": " & TcharName & SeparatorsValue & "\r\n" &
+      "\r\n"
+
+    let resp = parseResponse(cast[seq[char]](response))
+    check:
+      resp.success() == true
+      TcharName in resp
+      resp[TcharName] == TcharName & SeparatorsValue
+
   test "Parsing headers test":
     var headersStr = ""
     for item in ResponseHeaderTexts:
