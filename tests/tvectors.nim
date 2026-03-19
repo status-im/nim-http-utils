@@ -401,12 +401,7 @@ suite "HTTP Procedures test suite":
 
   test "HTTP Response Vectors":
     for i in 0..<len(ResponseVectors):
-      var a = cast[seq[char]](ResponseVectors[i])
-      var resp = parseResponse(a)
-      echo "Parsed response: ", resp
-      echo "Testing response vector ", i
-      echo "Content-Length: ", resp.contentLength()
-      echo "len response: ", len(resp)
+      let resp = parseResponse(cast[seq[char]](ResponseVectors[i]))
       if ResponseResults[i] == 0x9F:
         check:
           resp.success() == true
@@ -436,9 +431,6 @@ suite "HTTP Procedures test suite":
           check (ResponseHeaderTexts[ei].k in resp) == true
 
         for ei in ResponseHeaders[i][0]..ResponseHeaders[i][1]:
-          if resp[ResponseHeaderTexts[ei].k] != ResponseHeaderTexts[ei].v:
-            echo "Checking header: ", ResponseHeaderTexts[ei].k, " with value: ", ResponseHeaderTexts[ei].v
-            echo "Actual value: ", resp[ResponseHeaderTexts[ei].k]
           check (resp[ResponseHeaderTexts[ei].k] == ResponseHeaderTexts[ei].v)
 
   test "HTTP request methods test":
