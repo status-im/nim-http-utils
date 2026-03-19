@@ -1,7 +1,7 @@
 mode = ScriptMode.Verbose
 
 packageName   = "httputils"
-version       = "0.4.0"
+version       = "0.4.1"
 author        = "Status Research & Development GmbH"
 description   = "HTTP request/response helpers & parsing procedures"
 license       = "Apache License 2.0"
