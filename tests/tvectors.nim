@@ -253,7 +253,18 @@ const ResponseVectors = [
     "\r\n",
   "HTTP/1.1 200 \r\n" &
     "content-length: 458\r\n" &
-    "\r\n"
+    "\r\n",
+  "HTTP/1.1 200 OK\r\n" &
+    "Date: Fri, 13 Mar 2026 19:38:16 GMT\r\n" &
+    "Content-Type: application/json\r\n" &
+    "Content-Length: 102\r\n" &
+    "Connection: close\r\n" &
+    "Access-Control-Allow-Origin: *\r\n" &
+    "Vary: Accept-Encoding\r\n" &
+    "X-Info-Build: 3.40.0 (2026-03-12T14:41:48Z)\r\n" &
+    "X-Info-Node: (9c443c04-6d7f-400e-beb1-72168521d261 - blb-v2-linea-sepolia-6446587fd7-7wh56)\r\n" &
+    "X-Trace-Id: e528fe9b15ff5bca20691828ff9b97f4\r\n" &
+    "\r\n",
 ]
 
 const ResponseHeaderTexts = [
@@ -315,29 +326,39 @@ const ResponseHeaderTexts = [
 
   (k: "Content-Length", v: "99223372036854775807"),
 
-  (k: "Content-Length", v: "458")
+  (k: "Content-Length", v: "458"),
+
+  (k: "Date", v: "Fri, 13 Mar 2026 19:38:16 GMT"),
+  (k: "Content-Type", v: "application/json"),
+  (k: "Content-Length", v: "102"),
+  (k: "Connection", v: "close"),
+  (k: "Access-Control-Allow-Origin", v: "*"),
+  (k: "Vary", v: "Accept-Encoding"),
+  (k: "X-Info-Build", v: "3.40.0 (2026-03-12T14:41:48Z)"),
+  (k: "X-Info-Node", v: "(9c443c04-6d7f-400e-beb1-72168521d261 - blb-v2-linea-sepolia-6446587fd7-7wh56)"),
+  (k: "X-Trace-Id", v: "e528fe9b15ff5bca20691828ff9b97f4")
 ]
 
 const ResponseResults = [ 0x9F, 0x9F, 0x9F, 0x9F, 0xC3, 0x9F, 0x9F, 0x9F, 0x9F,
-                          0x9F, 0x9F, 0x9F, 0x9F ]
+                          0x9F, 0x9F, 0x9F, 0x9F, 0x9F ]
 
 const ResponseHeaders = [ (0, 7), (8, 12), (0, -1), (0, -1), (0, -1), (13, 16),
                           (17, 25), (26, 36), (37, 45), (46, 46), (47, 47),
-                          (48, 48), (49, 49)]
+                          (48, 48), (49, 49), (50, 58) ]
 
 const ResponseVersions = [HttpVersion11, HttpVersion10, HttpVersion11,
                           HttpVersion11, HttpVersion11, HttpVersion11,
                           HttpVersion10, HttpVersion11, HttpVersion11,
                           HttpVersion20, HttpVersion09, HttpVersion09,
-                          HttpVersion11]
+                          HttpVersion11, HttpVersion11]
 
 const ResponseCodes = [301, 200, 404, 503, 200, 200, 301, 200, 301, 200, 200,
-                       200, 200]
+                       200, 200, 200]
 
 const ResponseReasons = ["Moved Permanently", "OK", "Not Found", "", "", "OK",
                          "Moved Permanently", "OK", "MovedPermanently",
-                         "Success", "", "", ""]
-const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1, 458]
+                         "Success", "", "", "", "OK"]
+const ResponseCLengths = [ 219, 0, 0, 0, -1, 0, 0, 0, 0, 0, 15, -1, 458, 102 ]
 
 suite "HTTP Procedures test suite":
   test "HTTP Request Vectors":
@@ -380,8 +401,7 @@ suite "HTTP Procedures test suite":
 
   test "HTTP Response Vectors":
     for i in 0..<len(ResponseVectors):
-      var a = cast[seq[char]](ResponseVectors[i])
-      var resp = parseResponse(a)
+      let resp = parseResponse(cast[seq[char]](ResponseVectors[i]))
       if ResponseResults[i] == 0x9F:
         check:
           resp.success() == true
@@ -463,6 +483,82 @@ suite "HTTP Procedures test suite":
       else:
         chs[0] = chr(a)
         check checkHeaderValue(chs) == false
+
+  test "RFC 7230 Section 3.2 tchar and field-value special characters":
+    # https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+    # RFC 7230 §3.2 defines header field names as `token = 1*tchar` where:
+    # tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    #         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    const TcharSpecial = ['!', '#', '$', '%', '&', '\'', '*', '+', '-', '.',
+                          '^', '_', '`', '|', '~']
+
+    # Each tchar special character must be valid in a header name on its own
+    for ch in TcharSpecial:
+      check checkHeaderName($ch) == true
+
+    # Separator characters explicitly listed in RFC 7230 §3.2.6 as NOT tchar
+    # These are the "delimiters" that must not appear in tokens/field-names
+    const Separators = ['(', ')', '<', '>', '@', ',', ';', ':',
+                        '\\', '"', '/', '[', ']', '?', '=', '{', '}',
+                        ' ', '\t']
+    for ch in Separators:
+      check checkHeaderName($ch) == false
+
+    # Control characters (CTL = %x00-1F) and DEL (%x7F) are not tchar
+    for code in 0x00 .. 0x1F:
+      check checkHeaderName($chr(code)) == false
+    check checkHeaderName($chr(0x7F)) == false
+
+    # field-value: VCHAR (%x21-7E) are all valid characters
+    for code in 0x21 .. 0x7E:
+      check checkHeaderValue($chr(code)) == true
+
+    # field-value: SP (%x20) and HTAB (%x09) are valid whitespace within values
+    check checkHeaderValue($chr(0x20)) == true  # SP
+    check checkHeaderValue($chr(0x09)) == true  # HTAB
+
+    # field-value: obs-text (%x80-FF) is valid for backwards compatibility
+    for code in 0x80 .. 0xFF:
+      check checkHeaderValue($chr(code)) == true
+
+    # field-value: CR (%x0D) and LF (%x0A) terminate the header and must be rejected
+    check checkHeaderValue($CR) == false
+    check checkHeaderValue($LF) == false
+
+  test "RFC special chars in parseResponse":
+    # https://datatracker.ietf.org/doc/html/rfc7230#section-3.2
+    # All RFC 7230 tchar special characters must be valid in header names
+    # tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+    #         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    const TcharName = "!#$%&'*+-.^_`|~0123456789azAZ"
+    # Separator characters are NOT valid in header names but ARE valid in values
+    # per RFC 7230 §3.2.6: separators = "(" / ")" / "<" / ">" / "@" / "," /
+    #                                   ";" / ":" / "\" / <"> / "/" / "[" / "]" /
+    #                                   "?" / "=" / "{" / "}"
+    const SeparatorsValue = "()<>@,;:\\\"/[]?={}"
+
+    let response =
+      "HTTP/1.1 200 OK\r\n" &
+      TcharName & ": " & TcharName & SeparatorsValue & "\r\n" &
+      "\r\n"
+
+    let resp = parseResponse(cast[seq[char]](response))
+    check:
+      resp.success() == true
+      TcharName in resp
+      resp[TcharName] == TcharName & SeparatorsValue
+
+    ## Now parse the same response without space
+    let responseWithoutSpace =
+      "HTTP/1.1 200 OK\r\n" &
+      TcharName & ":" & TcharName & SeparatorsValue & "\r\n" &
+      "\r\n"
+
+    let respWithoutSpace = parseResponse(cast[seq[char]](responseWithoutSpace))
+    check:
+      respWithoutSpace.success() == true
+      TcharName in respWithoutSpace
+      respWithoutSpace[TcharName] == TcharName & SeparatorsValue
 
   test "Parsing headers test":
     var headersStr = ""
