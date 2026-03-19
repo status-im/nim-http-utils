@@ -548,6 +548,18 @@ suite "HTTP Procedures test suite":
       TcharName in resp
       resp[TcharName] == TcharName & SeparatorsValue
 
+    ## Now parse the same response without space
+    let responseWithoutSpace =
+      "HTTP/1.1 200 OK\r\n" &
+      TcharName & ":" & TcharName & SeparatorsValue & "\r\n" &
+      "\r\n"
+
+    let respWithoutSpace = parseResponse(cast[seq[char]](responseWithoutSpace))
+    check:
+      respWithoutSpace.success() == true
+      TcharName in respWithoutSpace
+      respWithoutSpace[TcharName] == TcharName & SeparatorsValue
+
   test "Parsing headers test":
     var headersStr = ""
     for item in ResponseHeaderTexts:
