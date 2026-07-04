@@ -1096,3 +1096,45 @@ suite "HTTP Procedures test suite":
           $contentType2 == line
     check:
       $ContentTypeData(status: HttpStatus.Failure) == "<incomplete>"
+
+  test "Authorization header parser test vectors":
+    const
+      SuccessVectors = [
+        ("Bearer aGVsbG8=", "bearer", "aGVsbG8="),
+        ("bearer aGVsbG8=", "bearer", "aGVsbG8="),
+        ("BEARER aGVsbG8=", "bearer", "aGVsbG8="),
+        ("BeArEr aGVsbG8=", "bearer", "aGVsbG8="),
+        ("Bearer    aGVsbG8=", "bearer", "aGVsbG8="),
+        ("Bearer aGVsbG8= ", "bearer", "aGVsbG8="),
+        ("Bearer aGVsbG8=\t", "bearer", "aGVsbG8="),
+        (" Bearer aGVsbG8=", "bearer", "aGVsbG8="),
+        ("\tBearer aGVsbG8=", "bearer", "aGVsbG8="),
+        ("Basic dXNlcjpwYXNz", "basic", "dXNlcjpwYXNz"),
+        ("Digest username=\"user\", realm=\"realm\"", "digest",
+         "username=\"user\", realm=\"realm\""),
+        ("Bearer", "bearer", ""),
+        ("Bearer ", "bearer", "")
+      ]
+      FailureVectors = [
+        "",
+        " ",
+        "Bear\ter aGVsbG8=",
+        "Bearer\taGVsbG8=",
+        "(Bearer) aGVsbG8="
+      ]
+
+    for vector in SuccessVectors:
+      let
+        parsed = parseAuthorization(vector[0])
+        res = getAuthorization(vector[0])
+      check:
+        parsed.success()
+        parsed == AuthorizationData(status: HttpStatus.Success,
+                                    scheme: vector[1], credentials: vector[2])
+        res.isOk()
+        res.get() == parsed
+
+    for vector in FailureVectors:
+      check:
+        parseAuthorization(vector).failed()
+        getAuthorization(vector).isErr()
