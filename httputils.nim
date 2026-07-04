@@ -29,7 +29,7 @@ const
   CR* = char(0x0D)
   LF* = char(0x0A)
   ALPHANUM = ALPHA + NUM
-  TCHAR* = TOKEND + ALPHANUM  # HTTP token characters, RFC 9110 Section 5.6.2
+  TCHAR = TOKEND + ALPHANUM  # HTTP token characters, RFC9110 Section 5.6.2
   TOKENURI = TOKEND * URITOKEND - DOT
   TOKENONLY = TOKEND - URITOKEND - DOT
   URIONLY = URITOKEND - TOKEND - COLON - SLASH - DOT
@@ -360,6 +360,12 @@ type
     status*: HttpStatus
     mediaType*: MediaType
     params*: seq[tuple[name: string, value: string]]
+
+  AuthorizationData* = object
+    ## `Authorization` header data
+    status*: HttpStatus
+    scheme*: string
+    credentials*: string
 
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
@@ -1123,6 +1129,42 @@ proc parseContentType*[T: BChar](data: openArray[T]): ContentTypeData =
   else:
     ContentTypeData(status: HttpStatus.Failure)
 
+proc parseAuthorization*[T: BChar](data: openArray[T]): AuthorizationData =
+  ## Parse sequence of characters or bytes of HTTP ``Authorization`` header
+  ## according to RFC9110 (section 11.4).
+  ##
+  ## Returns `AuthorizationData` instance with the scheme in lower case.
+  var res = AuthorizationData(status: HttpStatus.Failure)
+
+  # https://www.rfc-editor.org/info/rfc9110/#section-5.5
+  # A field value does not include leading or trailing whitespace.
+  var first = 0
+  while first < len(data) and char(data[first]) in SPACE:
+    inc(first)
+  var last = high(data)
+  while last >= first and char(data[last]) in SPACE:
+    dec(last)
+  if first > last:
+    return res
+
+  # https://www.rfc-editor.org/info/rfc9110/#section-11.4
+  # credentials = auth-scheme [ 1*SP ( token68 / #auth-param ) ]
+  # https://www.rfc-editor.org/info/rfc9110/#section-11.1
+  # auth-scheme = token = 1*tchar
+  var index = first
+  while index <= last and char(data[index]) != ' ':
+    if char(data[index]) notin TCHAR:
+      return res
+    inc(index)
+
+  res.scheme = data.toString(first, index - 1).toLowerAscii()
+  while index <= last and char(data[index]) == ' ':
+    inc(index)
+  if index <= last:
+    res.credentials = data.toString(index, last)
+  res.status = HttpStatus.Success
+  res
+
 proc parseAcceptHeader*[T: BChar](data: openArray[T],
                                   makeCopy: bool): AcceptHeader =
   var
@@ -1254,12 +1296,14 @@ proc parseAcceptHeader*[T: BChar](data: openArray[T],
     AcceptHeader(status: HttpStatus.Failure)
 
 template success*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                           AcceptHeader | ContentTypeData): bool =
+                           AcceptHeader | ContentTypeData |
+                           AuthorizationData): bool =
   ## Returns ``true`` is ``reqresp`` was successfully parsed.
   reqresp.status == HttpStatus.Success
 
 template failed*(reqresp: HttpReqRespHeader | ContentDispositionHeader |
-                          AcceptHeader | ContentTypeData): bool =
+                          AcceptHeader | ContentTypeData |
+                          AuthorizationData): bool =
   ## Returns ``true`` if ``reqresp`` parsing was failed.
   reqresp.status == HttpStatus.Failure
 
@@ -1650,6 +1694,13 @@ proc getContentType*(value: string): Result[ContentTypeData, cstring] =
     ok(header)
   else:
     err("Invalid Content-Type header format")
+
+proc getAuthorization*(value: string): Result[AuthorizationData, cstring] =
+  let header = parseAuthorization(value)
+  if header.success():
+    ok(header)
+  else:
+    err("Invalid Authorization header format")
 
 proc `==`*(a: ContentTypeData, b: MediaType): bool =
   if a.status != HttpStatus.Success:
