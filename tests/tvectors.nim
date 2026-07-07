@@ -50,7 +50,7 @@ const RequestVectors = [
   "PUT /!#$&'()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz~ HTTP/1.1\r\n" &
     "Host: example.com\r\n" &
     "Connection: Upgrade\r\n" &
-    "Upgrade: HTTP/1.1\r\n" &
+    "Upgrade: websocket\r\n" &
     "Content-Length: 15\r\n" &
     "\r\n",
   "GET / HTTP/1.0\r\n\r\n",
@@ -123,7 +123,7 @@ const RequestHeaderTexts = [
 
   (k: "Host", v: "example.com"),
   (k: "Connection", v: "Upgrade"),
-  (k: "Upgrade", v: "HTTP/1.1"),
+  (k: "Upgrade", v: "websocket"),
   (k: "Content-Length", v: "15"),
 
   (k: "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~", v: "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~"),
