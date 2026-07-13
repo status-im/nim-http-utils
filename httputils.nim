@@ -258,13 +258,10 @@ type
     Http504 = "504 Gateway Timeout",
     Http505 = "505 HTTP Version Not Supported"
 
-  HttpVersion* = enum
-    ## HTTP version
-    HttpVersion09
-    HttpVersion11,
-    HttpVersion10,
-    HttpVersion20,
-    HttpVersionError
+  HttpVersion* = tuple[major, minor: int8]
+    ## HTTP version - (0, 0) means that the version is unknown or couldn't be
+    ## parsed
+    ## https://www.rfc-editor.org/info/rfc9110/#section-2.5
 
   HttpMethod* = enum
     ## HTTP methods
@@ -370,6 +367,14 @@ type
   HttpReqRespHeader* = HttpRequestHeader | HttpResponseHeader | HttpHeadersList
 
   BChar* = byte | char
+
+const
+  HttpVersionError*: HttpVersion = (0, 0)
+  HttpVersion09*: HttpVersion = (0, 9)
+  HttpVersion10*: HttpVersion = (1, 0)
+  HttpVersion11*: HttpVersion = (1, 1)
+  HttpVersion20*: HttpVersion = (2, 0)
+  HttpVersion30*: HttpVersion = (3, 0)
 
 proc toString[T: BChar](data: openArray[T], start, stop: int): string
 
@@ -549,9 +554,6 @@ proc processVersion[T: BChar](data: openArray[T], s, e: int): HttpVersion =
       elif char(data[s + 5]) == '0' and char(data[s + 6]) == '.':
         if char(data[s + 7]) == '9':
           return HttpVersion09
-      elif char(data[s + 5]) == '2' and char(data[s + 6]) == '.':
-        if char(data[s + 7]) == '0':
-          return HttpVersion20
   return HttpVersionError
 
 proc processCode[T: BChar](data: openArray[T], s, e: int): int =
@@ -623,7 +625,7 @@ proc parseRequest*[T: BChar](data: openArray[T],
         break
       finish = index - 1
       let m = processVersion(data, start, finish)
-      if m == HttpVersion.HttpVersionError:
+      if m == HttpVersionError:
         break
       res.version = m
       start = -1
@@ -809,7 +811,7 @@ proc parseResponse*[T: BChar](data: openArray[T],
         break
       finish = index - 1
       let m = processVersion(data, start, finish)
-      if m == HttpVersion.HttpVersionError:
+      if m == HttpVersionError:
         break
       res.version = m
       start = -1
@@ -1816,19 +1818,17 @@ proc size*(reqresp: HttpReqRespHeader): int =
   else:
     0
 
-proc `$`*(version: HttpVersion): string =
-  ## Return string representation of HTTP version ``version``.
-  case version
-  of HttpVersion09:
+func `$`*(v: HttpVersion): string =
+  if v == HttpVersion09:
     "HTTP/0.9"
-  of HttpVersion10:
+  elif v == HttpVersion10:
     "HTTP/1.0"
-  of HttpVersion11:
+  elif v == HttpVersion11:
     "HTTP/1.1"
-  of HttpVersion20:
-    "HTTP/2.0"
+  elif v.minor == 0: # HTTP/2, HTTP/3 etc are standard spellings
+    "HTTP/" & $v.major
   else:
-    "HTTP/1.0"
+    "HTTP/" & $v.major & "." & $v.minor
 
 {.push overflowChecks: off.}
 proc contentLength*(reqresp: HttpReqRespHeader): int =

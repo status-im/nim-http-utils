@@ -1,9 +1,11 @@
-import std/strutils,
+import std/[os, strutils],
   unittest2,
   ../httputils
 
 # Some tests are borrowed from
 # https://github.com/nodejs/http-parser/blob/master/test.c
+
+const sourceDir = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]
 
 const RequestVectors = [
   "GET /test HTTP/1.1\r\n" &
@@ -28,7 +30,7 @@ const RequestVectors = [
     "\r\n",
   "GET /get_no_headers_no_body/world HTTP/1.0\r\n" &
     "\r\n",
-  "POST /get_one_header_no_body HTTP/2.0\r\n" &
+  "POST /get_one_header_no_body HTTP/1.1\r\n" &
     "Accept: */*\r\n" &
     "\r\n",
   "GET /get_funky_content_length_body_hello HTTP/1.0\r\n" &
@@ -48,7 +50,7 @@ const RequestVectors = [
   "PUT /!#$&'()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz~ HTTP/1.1\r\n" &
     "Host: example.com\r\n" &
     "Connection: Upgrade\r\n" &
-    "Upgrade: HTTP/2.0\r\n" &
+    "Upgrade: websocket\r\n" &
     "Content-Length: 15\r\n" &
     "\r\n",
   "GET / HTTP/1.0\r\n\r\n",
@@ -59,7 +61,7 @@ const RequestVectors = [
   "OPTIONS / HTTP/1.0\r\n\r\n",
   "TRACE / HTTP/1.0\r\n\r\n",
   "CONNECT / HTTP/1.0\r\n\r\n",
-  "CONNECT / HTTP/2.0\r\n" &
+  "CONNECT / HTTP/1.1\r\n" &
     "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~: !#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~\r\n" &
     "\r\n",
   "POST /empty_header HTTP/1.1\r\n" &
@@ -121,7 +123,7 @@ const RequestHeaderTexts = [
 
   (k: "Host", v: "example.com"),
   (k: "Connection", v: "Upgrade"),
-  (k: "Upgrade", v: "HTTP/2.0"),
+  (k: "Upgrade", v: "websocket"),
   (k: "Content-Length", v: "15"),
 
   (k: "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~", v: "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~"),
@@ -158,9 +160,9 @@ const RequestHeaders = [
 
 const RequestVersions = [
   HttpVersion11, HttpVersion11, HttpVersion11, HttpVersion11, HttpVersion10,
-  HttpVersion20, HttpVersion10, HttpVersion11, HttpVersion11, HttpVersion10,
+  HttpVersion11, HttpVersion10, HttpVersion11, HttpVersion11, HttpVersion10,
   HttpVersion11, HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion10,
-  HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion20,
+  HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion10, HttpVersion11,
   HttpVersion11, HttpVersion11, HttpVersion09, HttpVersion11, HttpVersion11,
   HttpVersion11
 ]
@@ -242,7 +244,7 @@ const ResponseVectors = [
     "Content-Type: text/html; charset=ISO-8859-1\r\n" &
     "Transfer-Encoding: chunked\r\n" &
     "\r\n",
-  "HTTP/2.0 200 Success\r\n" &
+  "HTTP/1.1 200 Success\r\n" &
     "!#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~: !#$%&'*+-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz|~\r\n" &
     "\r\n",
   "HTTP/0.9 200\r\n" &
@@ -349,7 +351,7 @@ const ResponseHeaders = [ (0, 7), (8, 12), (0, -1), (0, -1), (0, -1), (13, 16),
 const ResponseVersions = [HttpVersion11, HttpVersion10, HttpVersion11,
                           HttpVersion11, HttpVersion11, HttpVersion11,
                           HttpVersion10, HttpVersion11, HttpVersion11,
-                          HttpVersion20, HttpVersion09, HttpVersion09,
+                          HttpVersion11, HttpVersion09, HttpVersion09,
                           HttpVersion11, HttpVersion11]
 
 const ResponseCodes = [301, 200, 404, 503, 200, 200, 301, 200, 301, 200, 200,
@@ -864,7 +866,7 @@ suite "HTTP Procedures test suite":
           MediaType.init("*/json")) != 0
 
   test "Content-Type header parser mime-types vectors test":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         check:
@@ -1001,7 +1003,7 @@ suite "HTTP Procedures test suite":
         data.params[1] == (name: Token, value: QdText)
 
   test "isValid(MediaType) test":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         check isValid(MediaType.init(line)) == true
@@ -1010,7 +1012,7 @@ suite "HTTP Procedures test suite":
       isValid(MediaType.init("application/*")) == true
 
   test "isWildCard(MediaType) test":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         check isWildCard(MediaType.init(line)) == false
@@ -1020,7 +1022,7 @@ suite "HTTP Procedures test suite":
       isWildCard(MediaType.init("image/*")) == true
 
   test "(ContentTypeData, MediaType) comparison":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         let
@@ -1034,7 +1036,7 @@ suite "HTTP Procedures test suite":
           contentType1 == MediaType.init("*/*")
 
   test "(ContentTypeData, ContentTypeData) comparison":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         let
@@ -1083,7 +1085,7 @@ suite "HTTP Procedures test suite":
           contentType7 == contentType7
 
   test "ContenTypeData to string test":
-    let filename = "tests/mimetypes.txt"
+    const filename = sourceDir & "/mimetypes.txt"
     for line in filename.lines():
       if len(line) != 0:
         let header = line & "; charset=\"utf-8\"; boundary=\"boundary\""
