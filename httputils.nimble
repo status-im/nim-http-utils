@@ -1,17 +1,17 @@
 mode = ScriptMode.Verbose
 
 packageName   = "httputils"
-version       = "0.5.0"
+version       = "0.5.1"
 author        = "Status Research & Development GmbH"
 description   = "HTTP request/response helpers & parsing procedures"
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "Nim"]
 
 ### Dependencies
-requires "nim >= 1.6.0",
-         "stew",
-         "results",
-         "unittest2"
+requires "nim >= 1.6.18",
+         "results >= 0.5.0",
+         "stew >= 0.5.0",
+         "unittest2 >= 0.2.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
