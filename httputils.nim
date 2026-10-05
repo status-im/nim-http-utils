@@ -593,7 +593,7 @@ proc parseRequest*[T: BChar](data: openArray[T],
   if makeCopy:
     # Make copy of ``data`` sequence in our result object.
     res.data = newSeq[byte](len(data))
-    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+    copyMem(addr res.data[0], addr data[0], len(data))
 
   while index < len(data):
     let ps = requestSM.processHeaders(state, char(data[index]))
@@ -710,7 +710,7 @@ proc parseHeaders*[T: BChar](data: openArray[T],
   if makeCopy:
     # Make copy of ``data`` sequence in our result object.
     res.data = newSeq[byte](len(data))
-    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+    copyMem(addr res.data[0], addr data[0], len(data))
 
   while index < len(data):
     let ps = requestSM.processHeaders(state, char(data[index]))
@@ -798,7 +798,7 @@ proc parseResponse*[T: BChar](data: openArray[T],
   if makeCopy:
     # Make copy of ``data`` sequence in our result object.
     res.data = newSeq[byte](len(data))
-    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+    copyMem(addr res.data[0], addr data[0], len(data))
 
   while index < len(data):
     let ps = responseSM.processHeaders(state, char(data[index]))
@@ -921,7 +921,7 @@ proc parseDisposition*[T: BChar](data: openArray[T],
   if makeCopy:
     # Make copy of ``data`` sequence in our result object.
     res.data = newSeq[byte](len(data))
-    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+    copyMem(addr res.data[0], addr data[0], len(data))
 
   while index < len(data):
     let ps = contdispSM.processDisposition(state, char(data[index]))
@@ -1185,7 +1185,7 @@ proc parseAcceptHeader*[T: BChar](data: openArray[T],
   if makeCopy:
     # Make copy of ``data`` sequence in our result object.
     res.data = newSeq[byte](len(data))
-    copyMem(addr res.data[0], unsafeAddr data[0], len(data))
+    copyMem(addr res.data[0], addr data[0], len(data))
 
   while index < len(data):
     let ps = acceptSM.processAcceptHeader(state, char(data[index]))
@@ -1337,7 +1337,7 @@ proc toString[T: BChar](data: openArray[T], start, stop: int): string =
   let length = stop - start + 1
   var res = newString(length)
   if length > 0:
-    copyMem(addr res[0], unsafeAddr data[start], length)
+    copyMem(addr res[0], addr data[start], length)
   res
 
 proc `[]`*(reqresp: HttpReqRespHeader, header: string): string =

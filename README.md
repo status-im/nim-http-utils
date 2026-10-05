@@ -17,7 +17,7 @@ git clone https://github.com/status-im/nim-http-utils
 
 ## Requirements
 
-* Nim 1.6 and up
+* Nim 2.0.14 and up
 
 ## Documentation
 
