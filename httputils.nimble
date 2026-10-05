@@ -1,17 +1,17 @@
 mode = ScriptMode.Verbose
 
 packageName   = "httputils"
-version       = "0.5.1"
+version       = "0.6.0"
 author        = "Status Research & Development GmbH"
 description   = "HTTP request/response helpers & parsing procedures"
 license       = "Apache License 2.0"
 skipDirs      = @["tests", "Nim"]
 
 ### Dependencies
-requires "nim >= 1.6.18",
+requires "nim >= 2.0.14",
          "results >= 0.5.0",
-         "stew >= 0.5.0",
-         "unittest2 >= 0.2.0"
+         "stew >= 0.6.0",
+         "unittest2 >= 0.3.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
@@ -41,11 +41,10 @@ task test, "Run all tests":
   for threads in ["--threads:off", "--threads:on"]:
     for args in testArguments:
       run threads & " " & args & " --mm:refc", "tests/tvectors"
-      if (NimMajor, NimMinor) > (1, 6):
-        run threads & " " & args & " --mm:orc", "tests/tvectors"
+      run threads & " " & args & " --mm:orc", "tests/tvectors"
 
 task test_asan, "Run all tests with ASAN":
-  if platform != "x86" and (NimMajor, NimMinor) > (1, 6):
+  if platform != "x86":
     try:
       exec "echo '#if __clang_major__ < 20\n#error\n#endif' | clang -E - >/dev/null"
     except OSError:
